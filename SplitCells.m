@@ -14,39 +14,44 @@ function [cell1,cell2] = SplitCells(I,bgcolor)
     hold on;
     bar(px);
     %histogram - exclude bg ?do nothing if not w or b
-    min = 0;
-    max = 256;
-    if (bgcolor < 10)
-        min = bgcolor + 1;
-    elseif(bgcolor > 250)
-        max = bgcolor - 1;
+    minm = min(levels);%0;
+    maxm = max(levels);%256;
+    if (bgcolor ==minm)
+        minm = bgcolor + 1;
+    elseif(bgcolor ==maxm)
+        maxm = bgcolor - 1;
     end
-    xlim([min max]);
+    xlim([minm maxm]);
     xlabel('color values')
     ylabel('pixels')
     grid on;
-    
+    hold on;
     title('Image Histogram');
-   
+    
     colors = [];
     i = 1;
     for pos = 1:254
-        if px(pos) > 500
-            colors(i,:) = [pos-1 px(pos)]
-            i = i+1
+        if px(pos) > 200
+            colors(i,:) = [pos-1 px(pos)];
+            text(pos -0.4, px(pos) + 0.4, num2str(pos), 'VerticalAlignment', 'top', 'FontSize', 8)
+            i = i+1;
         end
     end
-    colors
+    hold off;
+    %colors
     %Determine peaks from hist
     if (length(colors) > 0)
         c1 = sortrows(colors,2);
-        peak1 = c1(end,:)
-        peak2 = c1(end-1,:)
-        peak3 = c1(end-2,:)
-        
-        cell1 = roicolor(IG,peak1(1));
-        cell2 = roicolor(IG,peak2(1));
-        othercolor = roicolor(IG, peak3(1));
+        peak1 = c1(end,:);
+        peak2 = c1(end-1,:);
+        peak3 = c1(end-2,:);
+        %allow range
+        p1 = [peak1(1)-10 : peak1(1)+10];
+        p2 = [peak2(1)-10 : peak2(1)+10];
+        p3 = [peak3(1)-10 : peak3(1)+10];
+        cell1 = roicolor(IG,p1);
+        cell2 = roicolor(IG,p2);
+        othercolor = roicolor(IG, p3);
         %Popup figure - can't get it to all display in box
         
         subplot(2,2,1)

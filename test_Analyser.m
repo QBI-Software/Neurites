@@ -1,11 +1,12 @@
 %%Test NeuritesAnalyser and NeuritesSynapse
-imgname='100715 annotated.tif';%example.tif'
-cell1file = 
+imgname='Test 2.jpg';%'100715 annotated.tif';%example.tif'
+imgroi ='tmp_roi.tif';
 I = imread(imgname);
 % thresholds – 1x3 matrix with the threshold values
+IG = rgb2gray(I);
 % for the R, G and B color channels - from histogram
 [cell1,cell2] = SplitCells(I,256);
-N = NeuritesAnalyser(imgname,'tmp_roi.tif',cell1,cell2);
+N = NeuritesAnalyser(imgname,imgroi,cell1,cell2);
 minlength = 10;
 tolerance = 2;
 N = N.findSegments(minlength,tolerance);
@@ -21,5 +22,6 @@ for i=1:length(N.Synapses)
     end
 end
 sprintf('Found %d synapses', ctr);
-
+cell1file='DSdata.csv';
+cell2file='SBACdata.csv';
 N = N.measureSynapses(showtypes,cell1file,cell2file);
