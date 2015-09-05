@@ -22,7 +22,7 @@ function varargout = NeuritesAppUI(varargin)
 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 20-Aug-2015 16:08:53
+% Last Modified by GUIDE v2.5 04-Sep-2015 18:34:12
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -288,11 +288,35 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
             %save to userdata
             data = struct('csvPath', csvPath, 'cell1file', cell1, 'cell2file',cell2);
             hObject.UserData = data;
+            %load config data if present
+            configfile =fullfile(csvPath, 'neurites.config');
+            if (exist(configfile, 'file') == 2)
+                M = csvread(configfile);
+                loadConfig(M,handles);
+            end
         end
     else
        updateStatus(handles,'ERROR: Requires 2 CSV files'); 
     end
 
+function loadConfig(M, handles)
+    hCell1 = findobj('Tag','editCell1');
+    hCell2 = findobj('Tag','editCell2');
+    hScale = findobj('Tag','editScale');
+    hSX = findobj('Tag','editShiftx');
+    hSY = findobj('Tag','editShifty');
+    hFit = findobj('Tag','editFit');
+    hMin = findobj('Tag','editMinlength');
+    hTol = findobj('Tag','editTolerance');
+   % set(hCell1,'String',M(1));
+   % set(hCell2,'String',M(2));
+    set(hScale,'String',num2str(M(3)));
+    set(hFit,'String',num2str(M(4)));
+    set(hSX,'String',num2str(M(5)));
+    set(hSY,'String',num2str(M(6)));
+    set(hMin,'String',num2str(M(7)));
+    set(hTol,'String',num2str(M(8)));
+    
 function [cell1,cell2]=generateHistogram(I, handles)
     %Generate histogram
     IG = rgb2gray(I);
@@ -490,24 +514,34 @@ h6 = findobj('Tag', 'checkboxIntersection');
 if (get(h6,'Value') > 0)
     types(length(types)+1)=3;
 end
-
+hScale = findobj('Tag','editScale');
+hSX = findobj('Tag','editShiftx');
+hSY = findobj('Tag','editShifty');
+hFit = findobj('Tag','editFit');
+scale = str2double(get(hScale,'String'));
+shiftx = str2double(get(hSX,'String'));
+shifty = str2double(get(hSY,'String'));
+fit = str2double(get(hFit,'String'));
 %Run analysis
 N = N.findSegments(minlength,tolerance);
 N = N.analyseSynapses(showplots,types);
+nocsvflag = 0;
 csvdata = handles.btnAnalysisFiles.UserData;
 if ( ~isempty(csvdata))
     csv1 = fullfile(csvdata.csvPath, csvdata.cell1file);
     csv2 = fullfile(csvdata.csvPath, csvdata.cell2file);
-    N = N.measureSynapses(types,csv1,csv2);
+    N = N.measureSynapses(types,csv1,csv2,scale,shiftx,shifty,fit);
+else
+    nocsvflag = 1;
 end
 ctr = 0;
 axes(handles.axes1);
 hold on;
 mycolors=['m' 'b' 'c'];
-mytypes =['En passant' 'End point' 'Intersection'];
-RData = [];
+%mytypes =['En passant' 'End point' 'Intersection'];
+%RData = [];
 %show data in table
-colnames = {'Type','Cell 1 X','Cell 1 Y','Cell 2 X','Cell 2 Y', 'Synapse length'};
+%colnames = {'Type','Cell 1 X','Cell 1 Y','Cell 2 X','Cell 2 Y', 'Synapse length'};
 htable = findobj('Tag','uitableResults');
 for i=1:length(N.Synapses)
     syn = N.Synapses{i};
@@ -517,19 +551,27 @@ for i=1:length(N.Synapses)
         plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',mycolors(syn.SynapseType),'marker','X','linestyle','none','LineWidth', 2);
         plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',mycolors(syn.SynapseType),'marker','X','linestyle','none','LineWidth', 2);
         %show data in table
-        row1 = [syn.SynapseType syn.MedianC1 syn.MedianC2 length(syn.RegionC1)];
-        RData = cat(1,RData,row1);
+        %row1 = [syn.SynapseType syn.MedianC1 syn.MedianC2 length(syn.RegionC1)];
+        %RData = cat(1,RData,row1);
     end
 end
 hold off;
-set(htable,'data',RData,'ColumnName',colnames);
+
+[colnames,T] = N.generateTable(types);
+
+set(htable,'data',T,'ColumnName',colnames);
 %save to file
 outputfile = 'tmp_data.csv';
-csvwrite(outputfile,RData);
+csvwrite(outputfile,T);
 %save analysis
 dataroi = struct('N', N, 'numsynapses',ctr);
 hObject.UserData = dataroi;
-status = sprintf('Found %d synapses. Saved to file:%s', ctr,outputfile);
+if (nocsvflag)
+    csvmsg ='Load CSV files to get full statistics.';
+else
+    csvmsg = 'Statistics from CSV files.';
+end
+status = sprintf('Found %d synapses. Saved to %s . %s', ctr,outputfile,csvmsg);
 updateStatus(handles,status);
 
 
@@ -658,18 +700,40 @@ function checkboxIntersection_Callback(hObject, eventdata, handles)
 
 
 % --- Executes on button press in pushbutton9.
-function pushbutton9_Callback(hObject, eventdata, handles)
+function saveConfig_Callback(hObject, eventdata, handles)
 % hObject    handle to pushbutton9 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 %Results table
-numPixels = 15;
-roi_area = 30;
-colnames = {'ROI NumberPixels','ROIArea'};
-RData=[numPixels roi_area];
-htable = findobj('Tag','uitableResults');
-set(htable,'data',RData,'ColumnName',colnames);
-
+hCell1 = findobj('Tag','editCell1');
+hCell2 = findobj('Tag','editCell2');
+hScale = findobj('Tag','editScale');
+hSX = findobj('Tag','editShiftx');
+hSY = findobj('Tag','editShifty');
+hFit = findobj('Tag','editFit');
+hMin = findobj('Tag','editMinlength');
+hTol = findobj('Tag','editTolerance');
+cell1 = get(hCell1,'String');
+cell2 = get(hCell2,'String');
+scale = str2double(get(hScale,'String'));
+fit = str2double(get(hFit,'String'));
+shiftx = str2double(get(hSX,'String'));
+shifty = str2double(get(hSY,'String'));
+minl = str2double(get(hMin,'String'));
+tol = str2double(get(hTol,'String'));
+colnames = {'Scale','Fit','Shiftx','Shifty','Minlength','Tolerance'};
+RData=[scale fit shiftx shifty minl tol];
+%htable = findobj('Tag','uitableResults');
+%set(htable,'data',RData,'ColumnName',colnames);
+%save to file
+csvdata = handles.btnAnalysisFiles.UserData;
+outputfile = 'neurites.config';
+if ( ~isempty(csvdata))
+    outputfile =fullfile(csvdata.csvPath, outputfile);
+end
+csvwrite(outputfile,RData);
+status = sprintf('Config file saved:%s',outputfile);
+updateStatus(handles,status);
 
 
 function editCell1_Callback(hObject, eventdata, handles)
@@ -707,6 +771,173 @@ function editCell2_Callback(hObject, eventdata, handles)
 % --- Executes during object creation, after setting all properties.
 function editCell2_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to editCell2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in btnRegister.
+function btnRegister_Callback(hObject, eventdata, handles)
+% hObject    handle to btnRegister (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+h = findobj('Tag','btnBrowser');
+data = h.UserData;
+I = data.cell1;
+csvdata = handles.btnAnalysisFiles.UserData;
+hScale = findobj('Tag','editScale');
+hSX = findobj('Tag','editShiftx');
+hSY = findobj('Tag','editShifty');
+if ( ~isempty(csvdata))
+    csv1 = fullfile(csvdata.csvPath, csvdata.cell1file);
+    T1 = readtable(csv1);
+    scale = str2double(get(hScale,'String'));
+    shiftx = str2double(get(hSX,'String'));
+    shifty = str2double(get(hSY,'String'));
+    %plot
+    X = (T1.StartX * scale) + shiftx;
+    Y = (T1.StartY * scale) + shifty;
+    axes(handles.axes2);
+    imshow(I);
+    hold on;
+    plot(X,-Y,'color','c','LineStyle','-','LineWidth', 2);
+    hold off;
+end
+
+
+
+function editScale_Callback(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editScale as text
+%        str2double(get(hObject,'String')) returns contents of editScale as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editScale_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function edit9_Callback(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editScale as text
+%        str2double(get(hObject,'String')) returns contents of editScale as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit9_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function edit10_Callback(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editScale as text
+%        str2double(get(hObject,'String')) returns contents of editScale as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function edit10_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function editFit_Callback(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editScale as text
+%        str2double(get(hObject,'String')) returns contents of editScale as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editFit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function editShiftx_Callback(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editScale as text
+%        str2double(get(hObject,'String')) returns contents of editScale as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editShiftx_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function editShifty_Callback(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editScale as text
+%        str2double(get(hObject,'String')) returns contents of editScale as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editShifty_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editScale (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

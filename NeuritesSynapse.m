@@ -1,9 +1,6 @@
 classdef NeuritesSynapse
    properties
-      x  %world co-ords
-      y
-      bx %binary img x,y
-      by
+      
       %Binary img analysis
       SegmentC1 %cell 1 neurite
       SegmentC2 %cell2 neurite
@@ -12,6 +9,12 @@ classdef NeuritesSynapse
       MedianC1
       MedianC2
       SynapseType %1=enpassant 2=end terminal 3=intersection
+      %Mapping to csv
+      shiftx  % x-shift to world co-ords
+      shifty  % y-shift to world co-ords
+      scale
+      StartXY1 % Start coords from csv for cell1
+      StartXY2 % Start coords from csv for cell2
       %neuron measurements
       NeuriteLengthC1
       NeuriteLengthC2
@@ -19,8 +22,8 @@ classdef NeuritesSynapse
       DistanceC2
       BranchPointC1
       BranchPointC2
-      TotalBranchPtsC1
-      TotalBranchPtsC2
+      BranchTypeC1
+      BranchTypeC2
       
    end
    methods
@@ -35,9 +38,14 @@ classdef NeuritesSynapse
         obj.MedianC2 = [gmarkerx,gmarkery];
         obj.SynapseType = type;
       end
-      function [x,y] = getMedianWcoords(imgx, imgy)
-        x = imgx;
-        y = imgy;
+      function [x,y] = img2Coords(obj,imgx, imgy)
+        x = (imgx - obj.shiftx)/obj.scale;
+        y = (-imgy - obj.shifty)/obj.scale;
+
+      end
+      function [imgx,imgy] = coords2Img(obj,x, y)
+        imgx = (x * obj.scale) + obj.shiftx;
+        imgy = -((y * obj.scale) + obj.shifty);
 
       end
       %function to lookup neuron measurements from csv

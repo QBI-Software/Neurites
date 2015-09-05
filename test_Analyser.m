@@ -25,3 +25,4 @@ sprintf('Found %d synapses', ctr);
 cell1file='DSdata.csv';
 cell2file='SBACdata.csv';
 N = N.measureSynapses(showtypes,cell1file,cell2file);
+T = N.generateTable(showtypes)

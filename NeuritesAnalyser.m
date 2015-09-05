@@ -316,19 +316,111 @@ classdef NeuritesAnalyser
         end
     end
     
-    function obj = measureSynapses(obj,showtypes,cell1file,cell2file)
-        
-        cell1 = csvread(cell1file);
-        cell2 = csvread(cell2file);
+    function obj = measureSynapses(obj,showtypes,cell1file,cell2file,scale,shiftx,shifty,tol)
+        I = obj.rbw;
+        T1 = readtable(cell1file);
+        T2 = readtable(cell2file);
+        %variable shift TODO adjust
+        %shiftx = 177;
+        %shifty = -942;
+        %plot
+        X = (T1.StartX * scale) + shiftx;
+        Y = (T1.StartY * scale) + shifty;
+        figure
+        imshow(I);
+        hold on;
+        %plot(synR(1),synR(2),'Marker', '*', 'color','m');
+        %plot(synG(1),synG(2),'Marker', '*', 'color','y');
+        plot(X,-Y,'color','c','LineStyle','-','LineWidth', 2);
+        hold off;
+        %tol = 10;
         for i = 1: length(obj.Synapses)
             syn = obj.Synapses{i};
             if (ismember(syn.SynapseType,showtypes))
-                [x1,y1] = syn.MedianC1;
-                [x2,y2] = syn.MedianC2;
+                %reset
+                fR = [];
+               
+                %C1 and C2 median should be similar
+                if (isempty(find(abs(syn.MedianC1-syn.MedianC2))> tol))
+                    x = mean(syn.MedianC1(1), syn.MedianC2(1));
+                    y = mean(syn.MedianC1(2), syn.MedianC2(2));
+                else
+                    x = syn.MedianC1(1);
+                    y = syn.MedianC1(2);
+                end
+                
+                %cell1
+                syn.shiftx = shiftx;
+                syn.shifty = shifty;
+                syn.scale = scale;
+                [xC, yC]= syn.img2Coords(x,y);
+                %select idx of row containing coords in csv - interpolation
+                fR=findCSVIndex(xC,yC,T1.StartX,T1.StartY,tol);
+                if (isempty(fR))
+                    warning('Warning: C1 synapse coords not found - %d, %d', xC,yC)
+                    %continue
+                    syn.StartXY1 = [0 0];
+                    syn.NeuriteLengthC1 = 0;
+                    syn.DistanceC1= 0;
+                    syn.BranchPointC1 = 0;
+                    syn.BranchTypeC1 = 0;
+                else
+                    %load it up
+                    syn.StartXY1 = [T1.StartX(fR), T1.StartY(fR)];
+                    syn.NeuriteLengthC1 = T1.Length__m_(fR)
+                    syn.DistanceC1= T1.LengthToBeginning__m_(fR)
+                    syn.BranchPointC1 = T1.Order(fR)
+                    syn.BranchTypeC1 = T1.PointType(fR)
+                end
+                %cell2
+                fR=findCSVIndex(xC,yC,T2.StartX,T2.StartY,tol);
+                if (isempty(fR))
+                    warning('Warning: C2 synapse coords not found - %d, %d', xC,yC)
+                    %continue
+                    syn.StartXY2 = [0 0];
+                    syn.NeuriteLengthC2 = 0;
+                    syn.DistanceC2= 0;
+                    syn.BranchPointC2 = 0;
+                    syn.BranchTypeC2 = 0;
+                else
+                    %load it up
+                    syn.StartXY2 = [T2.StartX(fR), T2.StartY(fR)];
+                    syn.NeuriteLengthC2 = T2.Length__m_(fR)
+                    syn.DistanceC2= T2.LengthToBeginning__m_(fR)
+                    syn.BranchPointC2 = T2.Order(fR)
+                    syn.BranchTypeC2 = T2.PointType(fR)
+                end
+                %save it
+                obj.Synapses{i} = syn;
+                
+            end
+        end
+       
+
+
+    end
+    function [colnames,tabledata] = generateTable(obj,types)
+        colnames = {'Type','Cell1 X','Cell1 Y','Cell2 X','Cell2 Y',...
+            'Cell1 length','Cell1 distance','Cell1 order', ...
+            'Cell2 length','Cell2 distance','Cell2 order', ...
+            'Cell1 StartX','Cell1 StartY','Cell2 StartX','Cell2 StartY' };
+        tabledata =[];
+        for i=1:length(obj.Synapses)
+            syn = obj.Synapses{i};
+            if (ismember(syn.SynapseType,types))
+                
+                %show data in table
+                row1 = [syn.SynapseType ...
+                    syn.MedianC1 syn.MedianC2 ...
+                    syn.NeuriteLengthC1 syn.DistanceC1 ...
+                    syn.BranchPointC1 syn.NeuriteLengthC2 ...
+                    syn.DistanceC2 syn.BranchPointC2 ...
+                    syn.StartXY1 syn.StartXY2];
+                tabledata = cat(1,tabledata,row1);
             end
         end
     end
-    
+  
     
    end
 end
@@ -387,5 +479,39 @@ function [a12,a13,a23] = findTriangleAngles(p1,p2,p3)
     a12 = acosd((s13^2 + s23^2 - s12^2)/(2*s13*s23))
     a13 = acosd((s12^2 + s23^2 - s13^2)/(2*s12*s23))
     a23 = acosd((s12^2 + s13^2 - s23^2)/(2*s12*s13))
+    
+end
+
+% Returns row index matching xy coords
+function fR=findCSVIndex(xC,yC,StartX,StartY,tol)
+    
+    d = 0;
+    fR = find((StartX >= xC-tol) & (StartX <=xC+tol))
+    %if only one val
+    if (isempty(fR))
+        fR = find((StartY >= yC-tol) & (StartY <=yC+tol))
+    end
+    
+    if (~isempty(fR) && (length(fR) > 1))
+        P = [xC,yC]; 
+        T = [StartX(fR) StartY(fR)];
+        u=tol+1;
+        s=0;
+        for i=1:length(T)
+            X = cat(1,P,T(i,:))
+            d = pdist(X,'euclidean')
+            if (d <= tol && u > d)
+                    u = d;
+                    s = fR(i);
+            end
+        end
+        if (s > 0)
+            fR =s
+        end
+    end
+    %If still empty or multiple
+     if (isempty(fR) || length(fR) > 1)
+         fR = [];
+     end
     
 end
