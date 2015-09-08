@@ -48,7 +48,24 @@ classdef NeuritesSynapse
         imgy = -((y * obj.scale) + obj.shifty);
 
       end
-      %function to lookup neuron measurements from csv
+      %isequal based on measurements only
+      function rslt = isequal(obj,synA)
+          rslt = 0;
+          %isa(x,'className');
+          if (isa(synA,'NeuritesSynapse'))
+              if (~isempty(obj.NeuriteLengthC1))
+                if ((synA.NeuriteLengthC1 == obj.NeuriteLengthC1) && ...
+                  (synA.NeuriteLengthC2 == obj.NeuriteLengthC2) && ... 
+                  (synA.DistanceC1 == obj.DistanceC1) && ...
+                  (synA.DistanceC2 == obj.DistanceC2) && ...
+                  (synA.BranchPointC1 == obj.BranchPointC1) && ...
+                  (synA.BranchPointC2 == obj.BranchPointC2) )
+                  rslt = 1;
+                end
+              end
+          end
+      end
+      
    end
    
 end

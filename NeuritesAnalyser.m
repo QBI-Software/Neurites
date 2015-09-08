@@ -64,65 +64,7 @@ classdef NeuritesAnalyser
              error('Error: Cannot set synapses - Empty set')
           end
       end
-      %Processes image to find binary images: 
-      % skeleton (BWS), branchpoints (BWB), endpoints (BWE)
-      % and list of lines (lines)
-      function [lines,bp,ep] = processMorph(obj,rbw)
-       
-        %Smoothing elements
-        se = strel('line',2,5);
-        se1 = strel('line',3,0);
-        se2 = strel('line',3,90);
-        %rbw = bwmorph('clean');
-        %BW3 = bwmorph(rbw,'open');
-        BW1 = imdilate(rbw,[se1 se2],'full');
-        BW2 = bwmorph(BW1,'bridge');
-        BW3 = imerode(BW2, se);
-        BWS = bwmorph(BW3,'skel',Inf);
-        BWB = bwmorph(BWS,'branchpoints');
-        BWE = bwmorph(BWS,'endpoints');
-        % get rid of overlap between ep and bp
-        BWE2 = bwmorph(BWE, 'thicken');
-        BWB2 = bwmorph(BWB, 'thicken');
-        BWB(find(BWE2)) = 0;
-        BWE(find(BWB2)) = 0; 
-        %Plots for checking
-        figure, imshow(rbw); hold on;
-        [m,n] = find(BWB == 1);
-        %reduce by distance
-        D = pdist2(m,n,'euclidean');
-        [r,c]= find(D <= 3);
-        %removes duplicates within range but should average
-        BWB(ismember(r,c),:)=0;
-        [m,n] = find(BWB == 1);
-        bp = {length(n)};
-        for i=1:length(n)
-            plot(n(i),m(i),...
-                 'color','b','marker','X','linestyle','none','LineWidth',2);
-            bp{i} = [n(i),m(i)];
-        end
-        
-        [j,k] = find(BWE == 1);
-        lines = {length(k)};
-        ctr = 1;
-        ep = {length(k)};
-        for i=1:length(k)
-            r = j(i);
-            c = k(i);
-            contour = bwtraceboundary(BWS,[r c],'S',8,400,'counterclockwise');
-            if (~isempty(contour))
-                plot(contour(:,2),contour(:,1),'g','LineWidth',2);
-                lines{ctr} = contour;
-                ctr = ctr+1;
-            end
-            plot(k(i),j(i),...
-                 'color','r','marker','O','linestyle','none','LineWidth',2);
-            ep{i} = [n(i),m(i)];
-        end
-        legend('x - Branchpoints','o - Endpoints')
-        hold off
-        
-      end
+      
       
       function obj = findSegments(obj,minlength,tol)
           Rb = bwboundaries(obj.maskedR);
@@ -135,7 +77,7 @@ classdef NeuritesAnalyser
           match = 1;
           segments = {};
           resolution = 1;
-          minsynapselength=4;
+          
           %test
           %figure
           imshow(obj.maskedR)
@@ -145,8 +87,9 @@ classdef NeuritesAnalyser
           [mag,mbg] = find(obj.maskedG==1);
           for i = 1:nR
             redSegment = Rb{i};
+            %Check is in ROI
             if (isempty(find(ismember(redSegment,[mar,mbr])==1, 1)))
-                plot(redSegment(:,2),redSegment(:,1),'b','LineWidth',2)
+                %plot(redSegment(:,2),redSegment(:,1),'b','LineWidth',2)
                 continue
             else
                 plot(redSegment(:,2),redSegment(:,1),'r','LineWidth',2)
@@ -156,6 +99,7 @@ classdef NeuritesAnalyser
                 y1 = redSegment(:,1);
                 for k = 1:nG
                     greenSegment = Gb{k};
+                    %Check valid ROI
                     if (isempty(find(ismember(greenSegment,[mag,mbg])==1,1)))
                        % plot(greenSegment(:,2),greenSegment(:,1),'y','LineWidth',2)
                         continue
@@ -165,72 +109,59 @@ classdef NeuritesAnalyser
                     nx1 = size(x1,1);
                     nx2 = size(x2,1);
 
-                    % calculate all pairwise distances
-                    %find gives indices which match values
-                    K = find(x2 >= (min(x1) - tol) & x2 <= (max(x1) + tol));
-                    O = find(y2 >= (min(y1) - tol) & y2 <= (max(y1) + tol));
+                    
+                    
+                    % Filter first - gives indices which match values
+                    Gxi = find(x2 >= (min(x1) - tol) & x2 <= (max(x1) + tol));
+                    Gyi = find(y2 >= (min(y1) - tol) & y2 <= (max(y1) + tol));
+                    [~,Gi] = intersect(Gxi,Gyi);
                     %find matching indices in x2,y2
-                    if (~isempty(K) && ~isempty(O))
+                    if (~isempty(Gi))
+                        tic
                         changes = zeros(nx1,nx2);
                         for m = 1:nx2
-                            %changes(:,m) = sqrt((x1-x2(m)).^2 + (y1-y2(m)).^2);
                             changes(:,m) = (abs(x1-x2(m)) + abs(y1-y2(m)))/2;
                         end
-                        [j,n] = find(changes <= tol);
-                        if (~isempty(j))
+                        [rr,gc] = find(changes <= tol); % idx = red row , green col
+                        if (~isempty(rr))
 
                             %check that range is single line
                             blankimg = zeros(size(obj.rbw));
-                            blankimg(y1(j),x1(j)) = 1;
-                            blankimg(y2(n),x2(n)) = 1;
+                            blankimg(y1(rr),x1(rr)) = 1;
+                            blankimg(y2(gc),x2(gc)) = 1;
                             [L, num] = bwlabel(blankimg, 8);
-
-                            if (num) > 1
-                                toggle=logical(1);
-                                for w=1:num
-                                    L1 = L == w;
-                                    [col,row] = find(L1);
-                                    %L1 = y2(col),x2(row)?
-                                    s  = regionprops(L1, 'centroid');
-                                    
-                                     if toggle
-                                        segments{match}{1} = redSegment;
-                                        segments{match}{2} = greenSegment;
-                                        if (~inpolygon(s.Centroid(1),s.Centroid(2),redSegment(:,2),redSegment(:,1)))
-                                            segments{match}{3} = [col,row];
-                                            segments{match}{5} = findLength([col,row], resolution);
-                                
-                                        elseif (~inpolygon(s.Centroid(1),s.Centroid(2),greenSegment(:,2),greenSegment(:,1)))
-                                            segments{match}{4} = [col,row];
-                                            segments{match}{6} = findLength([col,row], resolution);
-                                            toggle = ~toggle;
-                                            match = match+1;
-                                        end
-                                     end
+                            for w=1:num
+                                % DETECT R and G SYNAPTIC REGION
+                                [ry,cx] = find(L==w);
+                                %L1 = L == w;
+                                %[c,r] = find(L1);
+                                rc = [ry,cx];
+                                arr=find(ismember(rc,[y1(rr),x1(rr)],'rows'));
+                                agg=find(ismember(rc,[y2(gc),x2(gc)],'rows'));
+                                if (~isempty(arr) && ~isempty(agg))
+                                    segments{match}{1} = redSegment;
+                                    segments{match}{2} = greenSegment;
+                                    segments{match}{3} = rc(arr,:);
+                                    segments{match}{4} = rc(agg,:);
+                                    segments{match}{5} = findLength(rc(arr,:), resolution);
+                                    segments{match}{6} = findLength(rc(agg,:), resolution);
+                                    match = match + 1;
                                 end
-                            else
-                                % CHANGE TO CREATE SYNAPSE
-                                segments{match}{1} = redSegment;
-                                segments{match}{2} = greenSegment;
-                                segments{match}{3} = [y1(j),x1(j)];
-                                segments{match}{4} = [y2(n),x2(n)];
-                                segments{match}{5} = findLength([y1(j),x1(j)], resolution);
-                                segments{match}{6} = findLength([y2(n),x2(n)], resolution);
-                                match = match + 1;
                             end
                             
                         end
+                        toc
                         %one match per redsegment
-                        continue
+                        %continue
                     end
-                end
+                end %greenseg loop
             end
-          end
+          end %redseg loop
           
           hold off
           if (~isempty(segments))
               obj.Segments = segments;
-              status = sprintf('Matched=%d of %d', match, nG)
+              status = sprintf('Found %d Matches', match)
           else
               status = 'No segments found'
           end
@@ -250,12 +181,7 @@ classdef NeuritesAnalyser
             greenSegment = obj.Segments{p}{2};
             redhighlight = obj.Segments{p}{3};
             greenhighlight = obj.Segments{p}{4};
-            if (length(redhighlight)==0)
-                continue
-            elseif(length(greenhighlight)==0)
-                continue
-            end
-            
+           % Show on image
             plot(redSegment(:,2), redSegment(:,1), 'r', 'LineWidth', 2);
             plot(greenSegment(:,2), greenSegment(:,1),'g','LineWidth',2);
             plot(redhighlight(:,2), redhighlight(:,1), 'y', 'LineWidth', 3);
@@ -265,39 +191,21 @@ classdef NeuritesAnalyser
             [p1,p2] = findLinePoints(redhighlight);
             [p3,p4] = findLinePoints(greenhighlight);
 
-            % p4 not used?
-            [a12,a13,a23] = findTriangleAngles(p1,p2,p3);
-
-            %ignore if isosceles
-            a = [round(a12,0) round(a13,0) round(a23,0)];
-            a = sort(a);
-            b = [45 45 90];
-            c = [0 0 180];
-            if (isequaln(a,b) || isequaln(a,c) || ~isempty(a(isnan(a))))
-                type = 3; %isosceles indicates intersection not synapse
-            elseif(~isempty(intersect(a,b))) %if one angle is present check with other point
-                [a12,a13,a23] = findTriangleAngles(p1,p2,p4);
-                a = [round(a12,0) round(a13,0) round(a23,0)];
-                a = sort(a);
-                if (isequaln(a,b))
-                    type = 3;
-                end
-            end
             
             %determine median synapse location
             rmarkerx = median(redhighlight(:,2));
             rmarkery = median(redhighlight(:,1));
             gmarkerx = median(greenhighlight(:,2));
             gmarkery = median(greenhighlight(:,1));
-            nrange = [1 1];
-            %endpoint of one cell on another
-            if (isEndpoint(rmarkerx, rmarkery, redSegment,nrange) || ...
-                isEndpoint(gmarkerx,gmarkery,greenSegment,nrange))
-                type = 2;
-            end
+%             nrange = [1 1];
+%             %endpoint of one cell on another
+%             if (isEndpoint(rmarkerx, rmarkery, redSegment,nrange) || ...
+%                 isEndpoint(gmarkerx,gmarkery,greenSegment,nrange))
+%                 type = 2;
+%             end
             mycolors = ['m','b','c'];
             if (showplots && ismember(type,showtypes))
-                plot(p1(1), p1(2), p2(1), p2(2), p3(1), p3(2),...
+                plot(p1(1), p1(2), p2(1), p2(2), p3(1), p3(2), p4(1), p4(2),...
                 'color',mycolors(type),'marker','o','LineStyle','-','LineWidth', 2);
                 plot(rmarkerx,rmarkery,'color',mycolors(type),'marker','X','linestyle','none','LineWidth', 2);
                 plot(gmarkerx,gmarkery,'color',mycolors(type),'marker','X','linestyle','none','LineWidth', 2);
@@ -317,43 +225,31 @@ classdef NeuritesAnalyser
     end
     
     function obj = measureSynapses(obj,showtypes,cell1file,cell2file,scale,shiftx,shifty,tol)
-        I = obj.rbw;
+%         I = obj.rbw;
         T1 = readtable(cell1file);
         T2 = readtable(cell2file);
-        %variable shift TODO adjust
-        %shiftx = 177;
-        %shifty = -942;
-        %plot
-        X = (T1.StartX * scale) + shiftx;
-        Y = (T1.StartY * scale) + shifty;
-        figure
-        imshow(I);
-        hold on;
-        %plot(synR(1),synR(2),'Marker', '*', 'color','m');
-        %plot(synG(1),synG(2),'Marker', '*', 'color','y');
-        plot(X,-Y,'color','c','LineStyle','-','LineWidth', 2);
-        hold off;
+        %plot overlay
+%         X = (T1.StartX * scale) + shiftx;
+%         Y = (T1.StartY * scale) + shifty;
+%         figure
+%         imshow(I);
+%         hold on;
+%         plot(X,-Y,'color','c','LineStyle','-','LineWidth', 2);
+%         hold off;
         %tol = 10;
+        saved ={};
+        ctr=1;
         for i = 1: length(obj.Synapses)
             syn = obj.Synapses{i};
+            
             if (ismember(syn.SynapseType,showtypes))
-                %reset
-                fR = [];
-               
-                %C1 and C2 median should be similar
-                if (isempty(find(abs(syn.MedianC1-syn.MedianC2))> tol))
-                    x = mean(syn.MedianC1(1), syn.MedianC2(1));
-                    y = mean(syn.MedianC1(2), syn.MedianC2(2));
-                else
-                    x = syn.MedianC1(1);
-                    y = syn.MedianC1(2);
-                end
-                
                 %cell1
                 syn.shiftx = shiftx;
                 syn.shifty = shifty;
                 syn.scale = scale;
-                [xC, yC]= syn.img2Coords(x,y);
+                
+                %median coords - Cell1
+                [xC, yC]= syn.img2Coords(syn.MedianC1(1),syn.MedianC1(2));
                 %select idx of row containing coords in csv - interpolation
                 fR=findCSVIndex(xC,yC,T1.StartX,T1.StartY,tol);
                 if (isempty(fR))
@@ -367,12 +263,14 @@ classdef NeuritesAnalyser
                 else
                     %load it up
                     syn.StartXY1 = [T1.StartX(fR), T1.StartY(fR)];
-                    syn.NeuriteLengthC1 = T1.Length__m_(fR)
-                    syn.DistanceC1= T1.LengthToBeginning__m_(fR)
-                    syn.BranchPointC1 = T1.Order(fR)
-                    syn.BranchTypeC1 = T1.PointType(fR)
+                    syn.NeuriteLengthC1 = T1.Length__m_(fR);
+                    syn.DistanceC1= T1.LengthToBeginning__m_(fR);
+                    syn.BranchPointC1 = T1.Order(fR);
+                    syn.BranchTypeC1 = T1.PointType(fR);
                 end
-                %cell2
+                
+                %median coords - Cell2
+                [xC, yC]= syn.img2Coords(syn.MedianC2(1),syn.MedianC2(2));
                 fR=findCSVIndex(xC,yC,T2.StartX,T2.StartY,tol);
                 if (isempty(fR))
                     warning('Warning: C2 synapse coords not found - %d, %d', xC,yC)
@@ -385,25 +283,37 @@ classdef NeuritesAnalyser
                 else
                     %load it up
                     syn.StartXY2 = [T2.StartX(fR), T2.StartY(fR)];
-                    syn.NeuriteLengthC2 = T2.Length__m_(fR)
-                    syn.DistanceC2= T2.LengthToBeginning__m_(fR)
-                    syn.BranchPointC2 = T2.Order(fR)
-                    syn.BranchTypeC2 = T2.PointType(fR)
+                    syn.NeuriteLengthC2 = T2.Length__m_(fR);
+                    syn.DistanceC2= T2.LengthToBeginning__m_(fR);
+                    syn.BranchPointC2 = T2.Order(fR);
+                    syn.BranchTypeC2 = T2.PointType(fR);
                 end
-                %save it
-                obj.Synapses{i} = syn;
+                %check if duplicate
+                syn
+                if (~obj.duplicateSynapse(syn, i))
+                    %save it
+                    %obj.Synapses{i} = syn;
+                    saved{ctr} = syn;
+                    ctr = ctr + 1;
+                end
                 
             end
         end
        
-
+    %length(obj.Synapses)
+    obj.Synapses = saved;
+    length(obj.Synapses)
 
     end
     function [colnames,tabledata] = generateTable(obj,types)
-        colnames = {'Type','Cell1 X','Cell1 Y','Cell2 X','Cell2 Y',...
-            'Cell1 length','Cell1 distance','Cell1 order', ...
-            'Cell2 length','Cell2 distance','Cell2 order', ...
-            'Cell1 StartX','Cell1 StartY','Cell2 StartX','Cell2 StartY' };
+%         colnames = {'Type','Cell1 X','Cell1 Y','Cell2 X','Cell2 Y',...
+%             'Cell1 length','Cell1 distance','Cell1 order', ...
+%             'Cell2 length','Cell2 distance','Cell2 order', ...
+%             'Cell1 StartX','Cell1 StartY','Cell2 StartX','Cell2 StartY' };
+        colnames = {'Type' 'DS_X' 'DS_Y' 'SBAC_X' 'SBAC_Y' ...
+            'DS_length' 'DS_distance' 'DS_order'  ...
+            'SBAC_length' 'SBAC_distance' 'SBAC_order'  ...
+            'DS_StartX' 'DS_StartY' 'SBAC_StartX' 'SBAC_StartY' };
         tabledata =[];
         for i=1:length(obj.Synapses)
             syn = obj.Synapses{i};
@@ -420,8 +330,18 @@ classdef NeuritesAnalyser
             end
         end
     end
-  
-    
+    %Check if already loaded - num: is iteration of updated Syn objects
+    function isduplicate = duplicateSynapse(obj,syn, num)
+        isduplicate = 0;
+        for i=1:num
+            synA = obj.Synapses{i};
+            if (synA.isequal(syn))
+                isduplicate = 1;
+                continue;
+            end
+        end
+        
+    end
    end
 end
 
@@ -444,15 +364,19 @@ end
 
 %Find length of region - assumes straight line - TODO - curve line
 function c = findLength(region, resolution)
-    sortedregion = sortrows(region,1);
-    top = sortedregion(1,:);
-    bottom = sortedregion(end,:);
-    x1 = top(1);
-    y1 = top(2);
-    x2 = bottom(1);
-    y2 = bottom(2);
-    c = sqrt((x2 - x1)^2 + (y2-y1)^2);
-    c = c * resolution;
+    if(isempty(region))
+        c = 0;
+    else
+        sortedregion = sortrows(region,1);
+        top = sortedregion(1,:);
+        bottom = sortedregion(end,:);
+        x1 = top(1);
+        y1 = top(2);
+        x2 = bottom(1);
+        y2 = bottom(2);
+        V = [x1 y1;x2 y2];
+        c = pdist(V,'euclidean') * resolution;
+    end
 end
 
 %if x,y is at either end of segment within nrange of pixels as [1 1]
@@ -486,10 +410,10 @@ end
 function fR=findCSVIndex(xC,yC,StartX,StartY,tol)
     
     d = 0;
-    fR = find((StartX >= xC-tol) & (StartX <=xC+tol))
+    fR = find((StartX >= xC-tol) & (StartX <=xC+tol));
     %if only one val
     if (isempty(fR))
-        fR = find((StartY >= yC-tol) & (StartY <=yC+tol))
+        fR = find((StartY >= yC-tol) & (StartY <=yC+tol));
     end
     
     if (~isempty(fR) && (length(fR) > 1))
@@ -498,7 +422,7 @@ function fR=findCSVIndex(xC,yC,StartX,StartY,tol)
         u=tol+1;
         s=0;
         for i=1:length(T)
-            X = cat(1,P,T(i,:))
+            X = cat(1,P,T(i,:));
             d = pdist(X,'euclidean')
             if (d <= tol && u > d)
                     u = d;
@@ -506,7 +430,7 @@ function fR=findCSVIndex(xC,yC,StartX,StartY,tol)
             end
         end
         if (s > 0)
-            fR =s
+            fR =s;
         end
     end
     %If still empty or multiple
@@ -515,3 +439,13 @@ function fR=findCSVIndex(xC,yC,StartX,StartY,tol)
      end
     
 end
+
+function d = distanceBetween(A, B, type)
+    d= 0;
+    if (isempty(type))
+        type = 'euclidean';
+    end
+    X = cat(1,A,B);
+    d = pdist(X,type);
+end
+      
