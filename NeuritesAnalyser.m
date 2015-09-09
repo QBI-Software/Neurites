@@ -54,14 +54,14 @@ classdef NeuritesAnalyser
           if (~isempty(segments))
              obj.Segments = segments;
           else
-             error('Error: Cannot set segments - Empty set')
+             error('Error: Cannot set SEGMENTS - Empty set')
           end
       end
       function obj = set.Synapses(obj,segments)
           if (~isempty(segments))
              obj.Synapses = segments;
           else
-             error('Error: Cannot set synapses - Empty set')
+             error('Error: Cannot set SYNAPSES - Empty set')
           end
       end
       

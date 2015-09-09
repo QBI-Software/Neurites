@@ -64,12 +64,11 @@ if strcmp(get(hObject,'Visible'),'off')
     %load image in panel
     axes(handles.axes1);
     hFig = handles.axes1.Parent;
-    hIm = imshow('tmp_roi.tif');
+    hIm = imshow('synapse.jpg');
     hSP = imscrollpanel(hFig,hIm); % Handle to scroll panel.
-    set(hSP,'Units','normalized',...
-        'Position',[0.035 .254 0.393 .597]) %match with GUI box
-	%title('Default');
-    %setTitlePlot1('Default');
+    set(hSP,'Units','pixels',...
+        'Position',[50 334 551 451]) %match with GUI box
+	    
     % Add a Magnification Box and an Overview tool.
     hMagBox = immagbox(hFig,hIm);
     pos = get(hMagBox,'Position');
@@ -87,7 +86,7 @@ if strcmp(get(hObject,'Visible'),'off')
     %Zoom in to 1600% on the dark spot.
     api.setMagnificationAndCenter(16,306,800)
     %test
-    I = imread('example.tif');
+    I = imread('synapse.jpg');
     api.replaceImage(I)
 end
 
@@ -271,7 +270,8 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
         end
         if (strcmp(cell1, cell1ID) || strcmp(cell2, cell2ID))
             errstr = sprintf('ERROR: Requires 2 CSV files with filenames containing %s and %s',cell1ID,cell2ID);
-            updateStatus(handles,errstr);
+            errordlg(errstr,'CSV Files error')
+            %updateStatus(handles,errstr);
         else
             analysisfiles = strcat(cell1, ', ', cell2);
             set(handles.editAnalysisfiles,'string',analysisfiles);
@@ -291,7 +291,7 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
             end
         end
     else
-       updateStatus(handles,'ERROR: Requires 2 CSV files'); 
+       errordlg('Requires 2 CSV files','CSV Files error')
     end
 
 function loadConfig(M, handles)
@@ -362,7 +362,6 @@ function [cell1,cell2]=generateHistogram(I, handles)
     grid on;
     
     title('Image Histogram');
-    setTitlePlot2(handles,'Histogram');  
     hBg = findobj('Tag','radioWhite');
     bg = 256;
     if (get(hBg,'Value') == 0)
@@ -456,7 +455,7 @@ if (get(hObject,'Value') > 0)
     dataroi = struct('roi', BW, 'xi',xi,'yi',yi,'x',x,'y',y);
     hObject.UserData = dataroi;
     %show mask image in plot 2
-    setTitlePlot2(handles,'');   
+    %setTitlePlot2(handles,'');   
     axes(handles.axes2);
     cla;
     imshow(BW)
@@ -494,11 +493,6 @@ function updateStatus(handles,string)
     else
         set(handles.textOutput, 'string', string, 'Foreground', [0 0 0])
     end
-    
-function setTitlePlot1(handles,string)
-    set(handles.txtTitleplot1, 'string', string)
-function setTitlePlot2(handles,string)
-    set(handles.txtTitleplot2, 'string', string)
 
 
 % --- Executes on button press in btnIdentify.
@@ -513,20 +507,22 @@ data = h.UserData;
 hRoi = findobj('Tag','radioROI');
 roidata = hRoi.UserData;
 csvdata = handles.btnAnalysisFiles.UserData;
-if (isempty(roidata))
-    roi = fullfile(csvdata.csvPath, 'neurites_roi.tif');
-    %roi = 'neurites_roi.tif'; %default image
-else
+if (~isempty(roidata))
     roi = roidata.roi;
     xi = roidata.xi;
     yi = roidata.yi;
+elseif(~isempty(csvdata))
+    roi = fullfile(csvdata.csvPath, 'neurites_roi.tif');
+else
+    errordlg('Please set ROI first','ROI error!')
+    return
 end
 
 
 hwb = waitbar(0,'Running analysis ...');
 steps = 100;
 step = 10;
-waitbar(step / steps);
+waitbar(step / steps)
 %show figs
 axes(handles.axes2);
 cla;
@@ -534,7 +530,7 @@ cla;
 N = NeuritesAnalyser(data.inputfile,roi,data.cell1,data.cell2);
 
 title('Analysed ROI');
-setTitlePlot2(handles,'');
+
 %configuration
 h1 = findobj('Tag', 'editMinlength');
 minlength = str2double(get(h1,'String'));
@@ -566,11 +562,11 @@ fit = str2double(get(hFit,'String'));
 %Run analysis
 N = N.findSegments(minlength,tolerance);
 step = step + 10;
-waitbar(step / steps);
+waitbar(step / steps)
 
 N = N.analyseSynapses(showplots,types);
 step = step + 10;
-waitbar(step / steps);
+waitbar(step / steps)
 
 nocsvflag = 0;
 
@@ -578,12 +574,13 @@ if ( ~isempty(csvdata))
     csv1 = fullfile(csvdata.csvPath, csvdata.cell1file);
     csv2 = fullfile(csvdata.csvPath, csvdata.cell2file);
     N = N.measureSynapses(types,csv1,csv2,scale,shiftx,shifty,fit);
-     
+    pathname = csvdata.csvPath;
 else
     nocsvflag = 1;
+    pathname = data.imagePath;
 end
 step = steps;
-waitbar(step / steps);
+waitbar(step / steps)
 close(hwb);
 
 ctr = 0;
@@ -608,13 +605,14 @@ for i=1:length(N.Synapses)
     end
 end
 hold off;
-
+%Save image
+saveas(gcf,fullfile(pathname, 'neurites_img.png'));
 
 %Save data
 [colnames,T] = N.generateTable(types);
 set(htable,'data',T,'ColumnName',colnames);
 %save to file
-outputfile = fullfile(csvdata.csvPath, 'neurites_data.csv');
+outputfile = fullfile(pathname, 'neurites_data.csv');
 saveDataFile(outputfile, colnames, T);
 %csvwrite(outputfile,T);
 %T = cat(1,colnames,T);
@@ -630,6 +628,7 @@ end
 
 status = sprintf('Found %d synaptic regions. Saved to %s . %s', ctr,outputfile,csvmsg);
 updateStatus(handles,status);
+msgbox('Processing Complete!','Info');
 
 
 function saveDataFile(outputfile,colnames,tabledata)
