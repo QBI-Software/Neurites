@@ -264,9 +264,10 @@ classdef NeuritesAnalyser
                     %load it up
                     syn.StartXY1 = [T1.StartX(fR), T1.StartY(fR)];
                     syn.NeuriteLengthC1 = T1.Length__m_(fR);
-                    syn.DistanceC1= T1.LengthToBeginning__m_(fR);
+                    syn.DistanceC1= findDistanceToSoma(xC,yC,syn.StartXY1,T1.LengthToBeginning__m_(fR));
                     syn.BranchPointC1 = T1.Order(fR);
                     syn.BranchTypeC1 = T1.PointType(fR);
+                    [syn.NeuriteEndC1,syn.EndpointsC1] = findLength2NeuriteEnd(xC,yC,T1,fR);
                 end
                 
                 %median coords - Cell2
@@ -284,9 +285,10 @@ classdef NeuritesAnalyser
                     %load it up
                     syn.StartXY2 = [T2.StartX(fR), T2.StartY(fR)];
                     syn.NeuriteLengthC2 = T2.Length__m_(fR);
-                    syn.DistanceC2= T2.LengthToBeginning__m_(fR);
+                    syn.DistanceC2= findDistanceToSoma(xC,yC,syn.StartXY2,T2.LengthToBeginning__m_(fR));
                     syn.BranchPointC2 = T2.Order(fR);
                     syn.BranchTypeC2 = T2.PointType(fR);
+                    [syn.NeuriteEndC2,syn.EndpointsC2] = findLength2NeuriteEnd(xC,yC,T2,fR);
                 end
                 %check if duplicate
                 syn
@@ -305,15 +307,17 @@ classdef NeuritesAnalyser
     length(obj.Synapses)
 
     end
-    function [colnames,tabledata] = generateTable(obj,types)
-%         colnames = {'Type','Cell1 X','Cell1 Y','Cell2 X','Cell2 Y',...
-%             'Cell1 length','Cell1 distance','Cell1 order', ...
-%             'Cell2 length','Cell2 distance','Cell2 order', ...
-%             'Cell1 StartX','Cell1 StartY','Cell2 StartX','Cell2 StartY' };
-        colnames = {'Type' 'DS_X' 'DS_Y' 'SBAC_X' 'SBAC_Y' ...
-            'DS_length' 'DS_distance' 'DS_order'  ...
-            'SBAC_length' 'SBAC_distance' 'SBAC_order'  ...
-            'DS_StartX' 'DS_StartY' 'SBAC_StartX' 'SBAC_StartY' };
+    function [colnames,tabledata] = generateTable(obj,types, cell1label, cell2label)
+         colnames = {'Type' 'Cell1_X' 'Cell1_Y' 'Cell2_X' 'Cell2_Y',...
+             'Cell1_length' 'Cell1_distance' 'Cell1_order' 'Cell1_end' ...
+             'Cell2_length' 'Cell2_distance' 'Cell2_order' 'Cell2_end' ...
+             'Cell1_StartX' 'Cell1_StartY' 'Cell2_StartX' 'Cell2_StartY' };
+         colnames = strrep(colnames, 'Cell1', cell1label);
+         colnames = strrep(colnames, 'Cell2', cell2label);
+%         colnames = {'Type' 'DS_X' 'DS_Y' 'SBAC_X' 'SBAC_Y' ...
+%             'DS_length' 'DS_distance' 'DS_order' 'DS_end'  ...
+%             'SBAC_length' 'SBAC_distance' 'SBAC_order' 'SBAC_end' ...
+%             'DS_StartX' 'DS_StartY' 'SBAC_StartX' 'SBAC_StartY' };
         tabledata =[];
         for i=1:length(obj.Synapses)
             syn = obj.Synapses{i};
@@ -323,8 +327,8 @@ classdef NeuritesAnalyser
                 row1 = [syn.SynapseType ...
                     syn.MedianC1 syn.MedianC2 ...
                     syn.NeuriteLengthC1 syn.DistanceC1 ...
-                    syn.BranchPointC1 syn.NeuriteLengthC2 ...
-                    syn.DistanceC2 syn.BranchPointC2 ...
+                    syn.BranchPointC1 syn.NeuriteEndC1 syn.NeuriteLengthC2 ...
+                    syn.DistanceC2 syn.BranchPointC2 syn.NeuriteEndC2 ...
                     syn.StartXY1 syn.StartXY2];
                 tabledata = cat(1,tabledata,row1);
             end
@@ -448,4 +452,28 @@ function d = distanceBetween(A, B, type)
     X = cat(1,A,B);
     d = pdist(X,type);
 end
+
+function d = findDistanceToSoma(x,y,startxy,lengthxy)
+    d = distanceBetween([x,y],startxy,'euclidean');
+    d = lengthxy - d;
+end
+
+function [d,endpoints] = findLength2NeuriteEnd(x,y,T,fR)
+    maxfr = height(T);
+    endxy = [T.EndX(fR), T.EndY(fR)];
+    synxy = [x,y];
+    %endpoints = {}
+    xpoints = [T.StartX(fR)];
+    ypoints = [T.StartY(fR)];
+    d = distanceBetween(synxy,endxy,'euclidean');
+    while(strcmp(T.PointType(fR),'EP')== 0 && fR < maxfr)
+        d = d + T.Length__m_(fR);
+        %Save points for display
+        xpoints(end+1) = T.StartX(fR);
+        ypoints(end+1) = T.StartY(fR);
+        fR = fR + 1;
+    end    
+    endpoints =[xpoints,ypoints];
+end
+
       
