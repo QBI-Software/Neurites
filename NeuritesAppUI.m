@@ -67,7 +67,7 @@ if strcmp(get(hObject,'Visible'),'off')
     hIm = imshow('synapse_EM.jpg');
     hSP = imscrollpanel(hFig,hIm); % Handle to scroll panel.
     set(hSP,'Units','pixels',...
-        'Position',[50 334 551 451]) %match with GUI box
+        'Position',[50 289 551 351]) %match with GUI box
 	    
     % Add a Magnification Box and an Overview tool.
     hMagBox = immagbox(hFig,hIm);
@@ -548,11 +548,11 @@ hold off;
 %hFig = handles.axes1.Parent;
 %hIm = hFig.getimage;
 %hSP = imscrollpanel(hFig,hIm)
-F=getframe(handles.axes1); %select axes in GUI
-figure(); %new figure
-image(F.cdata); %show selected axes in new figure
-saveas(gcf, fullfile(pathname, 'neurites_img.png')); %save figure
-close(gcf); %and close it
+%F=getframe(handles.axes1); %select axes in GUI
+%figure(); %new figure
+%image(F.cdata); %show selected axes in new figure
+%saveas(gcf, fullfile(pathname, 'neurites_img.png')); %save figure
+%close(gcf); %and close it
 
 
 %Save data
