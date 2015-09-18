@@ -18,12 +18,16 @@ classdef NeuritesSynapse
       %neuron measurements
       NeuriteLengthC1
       NeuriteLengthC2
+      NeuriteEndC1
+      NeuriteEndC2
       DistanceC1
       DistanceC2
       BranchPointC1
       BranchPointC2
       BranchTypeC1
       BranchTypeC2
+      EndpointsC1
+      EndpointsC2
       
    end
    methods

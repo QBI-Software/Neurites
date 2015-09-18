@@ -22,7 +22,7 @@ function varargout = NeuritesAppUI(varargin)
 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 04-Sep-2015 18:34:12
+% Last Modified by GUIDE v2.5 16-Sep-2015 15:40:33
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -64,7 +64,7 @@ if strcmp(get(hObject,'Visible'),'off')
     %load image in panel
     axes(handles.axes1);
     hFig = handles.axes1.Parent;
-    hIm = imshow('synapse.jpg');
+    hIm = imshow('synapse_EM.jpg');
     hSP = imscrollpanel(hFig,hIm); % Handle to scroll panel.
     set(hSP,'Units','pixels',...
         'Position',[50 334 551 451]) %match with GUI box
@@ -86,7 +86,7 @@ if strcmp(get(hObject,'Visible'),'off')
     %Zoom in to 1600% on the dark spot.
     api.setMagnificationAndCenter(16,306,800)
     %test
-    I = imread('synapse.jpg');
+    I = imread('synapse_EM.jpg');
     api.replaceImage(I)
 end
 
@@ -107,29 +107,6 @@ varargout{1} = handles.output;
 
 
 % --------------------------------------------------------------------
-function FileMenu_Callback(hObject, eventdata, handles)
-% hObject    handle to FileMenu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-Message = {'Instructions for use\n1.Load image(tif or jpg) and check histogram and split cells'...
-    '2. Load 2 CSV data files (eg DS.csv and SBAC.csv) and check names'...
-    '3. Configure csv overlay with configuration values and Register CSV'...
-    '4. Draw ROI with ROI tool and double click in region to save'...
-    '5. Run analysis with Identify synaptic regions'...
-    '6. Check results'};
-h = msgbox(Message,'Instructions','Help');
-
-% --------------------------------------------------------------------
-function OpenMenuItem_Callback(hObject, eventdata, handles)
-% hObject    handle to OpenMenuItem (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-file = uigetfile('*.fig');
-if ~isequal(file, 0)
-    open(file);
-end
-
-% --------------------------------------------------------------------
 function PrintMenuItem_Callback(hObject, eventdata, handles)
 % hObject    handle to PrintMenuItem (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -147,33 +124,9 @@ selection = questdlg(['Close ' get(handles.figure1,'Name') '?'],...
 if strcmp(selection,'No')
     return;
 end
-
 delete(handles.figure1)
 
 
-% --- Executes on selection change in popupmenu1.
-function popupmenu1_Callback(hObject, eventdata, handles)
-% hObject    handle to popupmenu1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = get(hObject,'String') returns popupmenu1 contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from popupmenu1
-
-
-% --- Executes during object creation, after setting all properties.
-function popupmenu1_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to popupmenu1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-     set(hObject,'BackgroundColor','white');
-end
-
-%set(hObject, 'String', {'plot(rand(5))', 'plot(sin(1:0.01:25))', 'bar(1:.5:10)', 'plot(membrane)', 'surf(peaks)'});
 
 
 
@@ -374,12 +327,6 @@ function [cell1,cell2]=generateHistogram(I, handles)
 
 
 % --------------------------------------------------------------------
-function menu_File_Callback(hObject, eventdata, handles)
-% hObject    handle to menu_File (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
 
 % --- Executes on button press in radioZoom.
 function radioZoom_Callback(hObject, eventdata, handles)
@@ -538,19 +485,7 @@ h2 = findobj('Tag', 'editTolerance');
 tolerance = str2double(get(h2,'String'));
 h3 = findobj('Tag', 'checkboxShowplots');
 showplots = get(h3,'Value');
-types=[];
-h4 = findobj('Tag', 'checkboxEnpassant');
-if (get(h4,'Value') > 0)
-    types(length(types)+1)=1;
-end
-h5 = findobj('Tag', 'checkboxEndpoint');
-if (get(h5,'Value') > 0)
-    types(length(types)+1)=2;
-end
-h6 = findobj('Tag', 'checkboxIntersection');
-if (get(h6,'Value') > 0)
-    types(length(types)+1)=3;
-end
+types =[1];
 hScale = findobj('Tag','editScale');
 hSX = findobj('Tag','editShiftx');
 hSY = findobj('Tag','editShifty');
@@ -559,6 +494,10 @@ scale = str2double(get(hScale,'String'));
 shiftx = str2double(get(hSX,'String'));
 shifty = str2double(get(hSY,'String'));
 fit = str2double(get(hFit,'String'));
+hC1 = findobj('Tag','editCell1');
+cell1label = get(hC1, 'String');
+hC2 = findobj('Tag','editCell2');
+cell2label = get(hC2, 'String');
 %Run analysis
 N = N.findSegments(minlength,tolerance);
 step = step + 10;
@@ -606,10 +545,18 @@ for i=1:length(N.Synapses)
 end
 hold off;
 %Save image
-saveas(gcf,fullfile(pathname, 'neurites_img.png'));
+%hFig = handles.axes1.Parent;
+%hIm = hFig.getimage;
+%hSP = imscrollpanel(hFig,hIm)
+F=getframe(handles.axes1); %select axes in GUI
+figure(); %new figure
+image(F.cdata); %show selected axes in new figure
+saveas(gcf, fullfile(pathname, 'neurites_img.png')); %save figure
+close(gcf); %and close it
+
 
 %Save data
-[colnames,T] = N.generateTable(types);
+[colnames,T] = N.generateTable(types,cell1label, cell2label);
 set(htable,'data',T,'ColumnName',colnames);
 %save to file
 outputfile = fullfile(pathname, 'neurites_data.csv');
@@ -975,3 +922,48 @@ function editShifty_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in btnReview.
+function btnReview_Callback(hObject, eventdata, handles)
+% hObject    handle to btnReview (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+msgbox('Under development!','Warn');
+
+
+% --------------------------------------------------------------------
+function Menu_About_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_About (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+Message = {'QBI Williams Neurites Synapse Analyser' ...
+    'Description: Developed for Simon de Croft (Williams lab) for the '...
+    'detection and analysis of synaptic regions of two neurons.' ...
+    'Developed by Liz Cooper-Williams (e.cooperwilliams@uq.edu.au), (c)Copyright QBI 2015' ...
+    'Version: 1.1 (Sep 2015)'};
+msgbox(Message,'About')
+
+% --------------------------------------------------------------------
+function Menu_Help_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_Help (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+Message = {'Instructions for use' ...
+    '1. Load image(tif or jpg), check histogram and split cells' ...
+    '2. Load 2 CSV data files for each cell and check names(eg DS.csv and SBAC.csv)' ...
+    '3. Configure CSV overlay with Register CSV - adjust configuration values then save config' ...
+    '4. Draw ROI with ROI tool and double click in region to save' ...
+    '5. Run analysis with Identify synaptic regions' ...
+    '6. Check results'};
+h = msgbox(Message,'Instructions','Help');
+
+
+% --- Executes when user attempts to close figure1.
+function figure1_CloseRequestFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: delete(hObject) closes the figure
+delete(hObject);
