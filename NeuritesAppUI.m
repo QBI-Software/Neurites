@@ -19,7 +19,9 @@ function varargout = NeuritesAppUI(varargin)
 %      instance to run (singleton)".
 %
 % See also: GUIDE, GUIDATA, GUIHANDLES
-
+% ***NB***% For R2014a and earlier: 
+%       data = get(h,'UserData');
+%       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAppUI
 
 % Last Modified by GUIDE v2.5 16-Sep-2015 15:40:33
@@ -184,7 +186,8 @@ function btnBrowser_Callback(hObject, eventdata, handles)
     [cell1,cell2]=generateHistogram(I,handles);
     data = struct('img',I, 'imagePath',imagePath,'inputfile', inputPath, ...
         'ig', ig,'cell1',cell1,'cell2',cell2);
-    hObject.UserData = data;
+    set(hObject,'UserData',data); 
+    %hObject.UserData = data;
     %clear any previous data
     htable = findobj('Tag','uitableResults');
     set(htable,'Data',[]);
@@ -209,7 +212,8 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
         cell2ID = strjoin(cell2ID);
     end
     hfiles = findobj('Tag','btnBrowser');
-    hfdata = hfiles.UserData;
+    %hfdata = hfiles.UserData;
+    hfdata = get(hfiles,'UserData');
     csvPath = hfdata.imagePath;
     [csvFile, csvPath, filterIndex] = ...
       uigetfile(fileTypes, ...
@@ -238,7 +242,8 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
             updateStatus(handles,status);
             %save to userdata
             data = struct('csvPath', csvPath, 'cell1file', cell1, 'cell2file',cell2);
-            hObject.UserData = data;
+            %hObject.UserData = data;
+            set(hObject,'UserData',data);
             %load config data if present
             configfile =fullfile(csvPath, 'neurites_config.csv');
             if (exist(configfile, 'file') == 2)
@@ -293,7 +298,9 @@ function saveConfig_Callback(hObject, eventdata, handles)
 
     T = table(Cell1, Cell2, Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
     %save to file
-    csvdata = handles.btnAnalysisFiles.UserData;
+    %csvdata = handles.btnAnalysisFiles.UserData;
+    hCSV = findobj('Tag','btnAnalysisFiles');
+    csvdata = get(hCSV,'UserData');
     outputfile = 'neurites_config.csv';
     if ( ~isempty(csvdata))
         outputfile =fullfile(csvdata.csvPath, outputfile);
@@ -351,7 +358,8 @@ function btnImtool_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 h = findobj('Tag','btnBrowser');
-data = h.UserData;
+%data = h.UserData;
+data = get(h,'UserData');
 imtool(data.img)
 
 
@@ -398,12 +406,14 @@ if (get(hObject,'Value') > 0)
     roi_area = polyarea(xi,yi);
     %temp - copy to file
     hfiles = findobj('Tag','btnBrowser');
-    hfdata = hfiles.UserData;
+    %hfdata = hfiles.UserData;
+    hfdata = get(hfiles,'UserData');
     roifile = fullfile(hfdata.imagePath, 'neurites_roi.tif');
     imwrite(BW, roifile);
     %save data - workaround cannot save userdata in radio button??
     dataroi = struct('roi', BW, 'xi',xi,'yi',yi,'x',x,'y',y);
-    hObject.UserData = dataroi;
+    %hObject.UserData = dataroi;
+    set(hObject,'UserData',dataroi);
     %show mask image in plot 2
     %setTitlePlot2(handles,'');   
     axes(handles.axes2);
@@ -419,7 +429,8 @@ if (get(hObject,'Value') > 0)
     status= sprintf('ROI set: Proceed to Identify button')
     updateStatus(handles,status);
 else
-    hObject.UserData = {};
+    %hObject.UserData = {};
+    set(hObject,'UserData',{});
 end
 
 % --- Executes on button press in radioNone.
@@ -453,10 +464,14 @@ function btnIdentify_Callback(hObject, eventdata, handles)
 
 % Get grayscale img
 h = findobj('Tag','btnBrowser');
-data = h.UserData;
+%data = h.UserData;
+data = get(h,'UserData');
 hRoi = findobj('Tag','radioROI');
-roidata = hRoi.UserData;
-csvdata = handles.btnAnalysisFiles.UserData;
+%roidata = hRoi.UserData;
+roidata = get(hRoi,'UserData');
+%csvdata = handles.btnAnalysisFiles.UserData;
+hCSV = findobj('Tag','btnAnalysisFiles');
+csvdata = get(hCSV,'UserData');
 if (~isempty(roidata))
     roi = roidata.roi;
     xi = roidata.xi;
@@ -569,7 +584,8 @@ saveDataFile(outputfile, colnames, T);
 %writetable(T,outputfile);
 %save analysis
 dataN = struct('N', N, 'numsynapses',ctr);
-hObject.UserData = dataN;
+%hObject.UserData = dataN;
+set(hObject,'UserData',dataN);
 if (nocsvflag)
     csvmsg ='Load CSV files to get full statistics.';
 else
@@ -598,7 +614,8 @@ function btnSplitcells_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 %Use RGB image
 h = findobj('Tag','btnBrowser');
-data = h.UserData;
+%data = h.UserData;
+data = get(h,'UserData');
 I = data.img;
 hBg = findobj('Tag','radioWhite');
 bg = 256;
@@ -766,9 +783,12 @@ function btnRegister_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 h = findobj('Tag','btnBrowser');
-data = h.UserData;
+%data = h.UserData;
+data = get(h,'UserData');
 I = data.cell1;
-csvdata = handles.btnAnalysisFiles.UserData;
+%csvdata = handles.btnAnalysisFiles.UserData;
+hCSV = findobj('Tag','btnAnalysisFiles');
+csvdata = get(hCSV,'UserData');
 hScale = findobj('Tag','editScale');
 hSX = findobj('Tag','editShiftx');
 hSY = findobj('Tag','editShifty');
