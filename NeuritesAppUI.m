@@ -63,7 +63,7 @@ if strcmp(get(hObject,'Visible'),'off')
     %(rand(5));
     %load image in panel
     axes(handles.axes1);
-    hFig = handles.axes1.Parent;
+    hFig = figure(get(handles.axes1,'parent'));%handles.axes1.Parent;
     hIm = imshow('synapse_EM.jpg');
     hSP = imscrollpanel(hFig,hIm); % Handle to scroll panel.
     set(hSP,'Units','pixels',...
@@ -88,6 +88,7 @@ if strcmp(get(hObject,'Visible'),'off')
     %test
     I = imread('synapse_EM.jpg');
     api.replaceImage(I)
+    
 end
 
 % UIWAIT makes NeuritesAppUI wait for user response (see UIRESUME)
@@ -172,8 +173,10 @@ function btnBrowser_Callback(hObject, eventdata, handles)
 	
     %load image in panel
     axes(handles.axes1);
-    hSP = handles.axes1.Parent; %scrollpanel
-    hFig = hSP.Parent; %figure
+    %hFig = figure(get(handles.axes1,'parent'));%handles.axes1.Parent;
+    hSP = get(handles.axes1,'parent');
+    %hSP = handles.axes1.Parent; %scrollpanel
+    %hFig = hSP.Parent; %figure
     api = iptgetapi(hSP);
     api.replaceImage(I)
     
