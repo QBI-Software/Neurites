@@ -24,7 +24,7 @@ function varargout = NeuritesAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 16-Sep-2015 15:40:33
+% Last Modified by GUIDE v2.5 23-Sep-2015 17:56:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;

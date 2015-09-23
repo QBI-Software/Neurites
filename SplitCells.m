@@ -40,29 +40,30 @@ function [cell1,cell2] = SplitCells(I,bgcolor)
     hold off;
     %colors
     %Determine peaks from hist
-    if (length(colors) > 0)
+    if (length(colors) >= 2)
         c1 = sortrows(colors,2);
         peak1 = c1(end,:);
         peak2 = c1(end-1,:);
-        peak3 = c1(end-2,:);
+        
         %allow range
         p1 = [peak1(1)-10 : peak1(1)+10];
         p2 = [peak2(1)-10 : peak2(1)+10];
-        p3 = [peak3(1)-10 : peak3(1)+10];
         cell1 = roicolor(IG,p1);
         cell2 = roicolor(IG,p2);
-        othercolor = roicolor(IG, p3);
-        %Popup figure - can't get it to all display in box
-        
         subplot(2,2,1)
         imshow(cell1)
         title('Cell 1')
         subplot(2,2,2)
         imshow(cell2)
         title('Cell 2')
-        subplot(2,2,3)
-        imshow(othercolor)
-        title('Other')
+        if (length(colors) == 3)
+            peak3 = c1(end-2,:);
+            p3 = [peak3(1)-10 : peak3(1)+10];
+            othercolor = roicolor(IG, p3);
+            subplot(2,2,3)
+            imshow(othercolor)
+            title('Other')
+        end
     else
         error('Error: Unable to create histogram');
     end
