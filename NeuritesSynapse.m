@@ -28,6 +28,12 @@ classdef NeuritesSynapse
       BranchTypeC2
       EndpointsC1
       EndpointsC2
+      SomaC1
+      SomaC2
+      SomapointsC1
+      SomapointsC2
+      fR1
+      fR2
       
    end
    methods
@@ -69,6 +75,7 @@ classdef NeuritesSynapse
               end
           end
       end
+      
       
    end
    

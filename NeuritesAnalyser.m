@@ -8,6 +8,8 @@ classdef NeuritesAnalyser
       maskedG
       Segments
       Synapses
+      CSV1
+      CSV2
       
    end
    methods
@@ -117,7 +119,7 @@ classdef NeuritesAnalyser
                     [~,Gi] = intersect(Gxi,Gyi);
                     %find matching indices in x2,y2
                     if (~isempty(Gi))
-                        tic
+                        %tic
                         changes = zeros(nx1,nx2);
                         for m = 1:nx2
                             changes(:,m) = (abs(x1-x2(m)) + abs(y1-y2(m)))/2;
@@ -150,7 +152,7 @@ classdef NeuritesAnalyser
                             end
                             
                         end
-                        toc
+                        %toc
                         %one match per redsegment
                         %continue
                     end
@@ -228,6 +230,8 @@ classdef NeuritesAnalyser
 %         I = obj.rbw;
         T1 = readtable(cell1file);
         T2 = readtable(cell2file);
+        obj.CSV1 = T1;
+        obj.CSV2 = T2;
         %plot overlay
 %         X = (T1.StartX * scale) + shiftx;
 %         Y = (T1.StartY * scale) + shifty;
@@ -252,6 +256,7 @@ classdef NeuritesAnalyser
                 [xC, yC]= syn.img2Coords(syn.MedianC1(1),syn.MedianC1(2));
                 %select idx of row containing coords in csv - interpolation
                 fR=findCSVIndex(xC,yC,T1.StartX,T1.StartY,tol);
+                
                 if (isempty(fR))
                     warning('Warning: C1 synapse coords not found - %d, %d', xC,yC)
                     %continue
@@ -262,12 +267,14 @@ classdef NeuritesAnalyser
                     syn.BranchTypeC1 = 0;
                 else
                     %load it up
+                    syn.fR1 =fR;
                     syn.StartXY1 = [T1.StartX(fR), T1.StartY(fR)];
                     syn.NeuriteLengthC1 = T1.Length__m_(fR);
                     syn.DistanceC1= findDistanceToSoma(xC,yC,syn.StartXY1,T1.LengthToBeginning__m_(fR));
                     syn.BranchPointC1 = T1.Order(fR);
                     syn.BranchTypeC1 = T1.PointType(fR);
-                    [syn.NeuriteEndC1,syn.EndpointsC1] = findLength2NeuriteEnd(xC,yC,T1,fR);
+                    [syn.NeuriteEndC1,syn.EndpointsC1] = findLength2NeuriteEnd(syn,xC,yC,T1,fR);
+                    [syn.SomaC1,syn.SomapointsC1] = findSomaPoints(syn,xC,yC,T1,fR);
                 end
                 
                 %median coords - Cell2
@@ -283,12 +290,14 @@ classdef NeuritesAnalyser
                     syn.BranchTypeC2 = 0;
                 else
                     %load it up
+                    syn.fR2=fR;
                     syn.StartXY2 = [T2.StartX(fR), T2.StartY(fR)];
                     syn.NeuriteLengthC2 = T2.Length__m_(fR);
                     syn.DistanceC2= findDistanceToSoma(xC,yC,syn.StartXY2,T2.LengthToBeginning__m_(fR));
                     syn.BranchPointC2 = T2.Order(fR);
                     syn.BranchTypeC2 = T2.PointType(fR);
-                    [syn.NeuriteEndC2,syn.EndpointsC2] = findLength2NeuriteEnd(xC,yC,T2,fR);
+                    [syn.NeuriteEndC2,syn.EndpointsC2] = findLength2NeuriteEnd(syn,xC,yC,T2,fR);
+                    [syn.SomaC2,syn.SomapointsC2] = findSomaPoints(syn,xC,yC,T2,fR);
                 end
                 %check if duplicate
                 syn
@@ -309,14 +318,14 @@ classdef NeuritesAnalyser
     end
     function [colnames,tabledata] = generateTable(obj,types, cell1label, cell2label)
          colnames = {'Type' 'Cell1_X' 'Cell1_Y' 'Cell2_X' 'Cell2_Y',...
-             'Cell1_length' 'Cell1_distance' 'Cell1_order' 'Cell1_end' ...
-             'Cell2_length' 'Cell2_distance' 'Cell2_order' 'Cell2_end' ...
+             'Cell1_length' 'Cell1_distance' 'Cell1_order' 'Cell1_end' 'Cell1_soma' ...
+             'Cell2_length' 'Cell2_distance' 'Cell2_order' 'Cell2_end' 'Cell2_soma' ...
              'Cell1_StartX' 'Cell1_StartY' 'Cell2_StartX' 'Cell2_StartY' };
          colnames = strrep(colnames, 'Cell1', cell1label);
          colnames = strrep(colnames, 'Cell2', cell2label);
 %         colnames = {'Type' 'DS_X' 'DS_Y' 'SBAC_X' 'SBAC_Y' ...
-%             'DS_length' 'DS_distance' 'DS_order' 'DS_end'  ...
-%             'SBAC_length' 'SBAC_distance' 'SBAC_order' 'SBAC_end' ...
+%             'DS_length' 'DS_distance' 'DS_order' 'DS_end' 'DS_soma'  ...
+%             'SBAC_length' 'SBAC_distance' 'SBAC_order' 'SBAC_end' 'SBAC_soma' ...
 %             'DS_StartX' 'DS_StartY' 'SBAC_StartX' 'SBAC_StartY' };
         tabledata =[];
         for i=1:length(obj.Synapses)
@@ -327,8 +336,10 @@ classdef NeuritesAnalyser
                 row1 = [syn.SynapseType ...
                     syn.MedianC1 syn.MedianC2 ...
                     syn.NeuriteLengthC1 syn.DistanceC1 ...
-                    syn.BranchPointC1 syn.NeuriteEndC1 syn.NeuriteLengthC2 ...
-                    syn.DistanceC2 syn.BranchPointC2 syn.NeuriteEndC2 ...
+                    syn.BranchPointC1 syn.NeuriteEndC1 ...
+                    syn.SomaC1 syn.NeuriteLengthC2 ...
+                    syn.DistanceC2 syn.BranchPointC2 ...
+                    syn.SomaC2 syn.NeuriteEndC2 ...
                     syn.StartXY1 syn.StartXY2];
                 tabledata = cat(1,tabledata,row1);
             end
@@ -427,7 +438,7 @@ function fR=findCSVIndex(xC,yC,StartX,StartY,tol)
         s=0;
         for i=1:length(T)
             X = cat(1,P,T(i,:));
-            d = pdist(X,'euclidean')
+            d = pdist(X,'euclidean');
             if (d <= tol && u > d)
                     u = d;
                     s = fR(i);
@@ -458,22 +469,54 @@ function d = findDistanceToSoma(x,y,startxy,lengthxy)
     d = lengthxy - d;
 end
 
-function [d,endpoints] = findLength2NeuriteEnd(x,y,T,fR)
+function [d,endpoints] = findLength2NeuriteEnd(syn,x,y,T,fR)
     maxfr = height(T);
     endxy = [T.EndX(fR), T.EndY(fR)];
     synxy = [x,y];
     %endpoints = {}
-    xpoints = [T.StartX(fR)];
-    ypoints = [T.StartY(fR)];
+    xpoints = [];
+    ypoints = [];
     d = distanceBetween(synxy,endxy,'euclidean');
     while(strcmp(T.PointType(fR),'EP')== 0 && fR < maxfr)
         d = d + T.Length__m_(fR);
         %Save points for display
-        xpoints(end+1) = T.StartX(fR);
-        ypoints(end+1) = T.StartY(fR);
+        xpoints(end+1) = (T.StartX(fR) * syn.scale) + syn.shiftx;
+        ypoints(end+1) = -((T.StartY(fR) * syn.scale) + syn.shifty);
         fR = fR + 1;
     end    
-    endpoints =[xpoints,ypoints];
+    endpoints =cat(2,xpoints',ypoints');
 end
 
+function [d,points] = findSomaPoints(syn,x,y,T,fR)
+    maxfr = height(T);
+    startxy = [T.StartX(fR), T.StartY(fR)];
+    synxy = [x,y];
+    tree = T.Tree(fR);
+    order = T.Order(fR);
+    cacheTree = tree;
+    cacheOrder = order;
+    %endpoints = {}
+    xpoints = [];
+    ypoints = [];
+    d = distanceBetween(synxy,startxy,'euclidean');
+    cacheStart = T.StartX(fR);
+    while(tree == cacheTree  && fR < maxfr && fR > 0)
+        %check tree and branch order strcmp(T.PointType(fR),'EP')== 0 && 
+        tree = T.Tree(fR);
+        order = T.Order(fR);
+        if (cacheStart == T.EndX(fR) && (order == cacheOrder || order == cacheOrder-1))
+            cacheStart = T.StartX(fR);
+            d = d + T.Length__m_(fR);
+            %Save points for display
+            xpoints(end+1) = (T.StartX(fR) * syn.scale) + syn.shiftx;
+            ypoints(end+1) = -((T.StartY(fR) * syn.scale) + syn.shifty);
+        
+           if (order == cacheOrder-1 )
+                cacheOrder = order;
+           end
+        end
+       fR = fR - 1;
+    end    
+    points =cat(2,xpoints',ypoints');
+end
       

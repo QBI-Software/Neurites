@@ -24,7 +24,7 @@ function varargout = NeuritesAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 23-Sep-2015 17:56:49
+% Last Modified by GUIDE v2.5 25-Sep-2015 16:05:55
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -110,6 +110,23 @@ varargout{1} = handles.output;
 
 
 % --------------------------------------------------------------------
+function FileMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to FileMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------------
+%function OpenMenuItem_Callback(hObject, eventdata, handles)
+% hObject    handle to OpenMenuItem (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+%file = uigetfile('*.fig');
+%if ~isequal(file, 0)
+%    open(file);
+%end
+
+% --------------------------------------------------------------------
 function PrintMenuItem_Callback(hObject, eventdata, handles)
 % hObject    handle to PrintMenuItem (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -127,9 +144,33 @@ selection = questdlg(['Close ' get(handles.figure1,'Name') '?'],...
 if strcmp(selection,'No')
     return;
 end
+
 delete(handles.figure1)
 
 
+% --- Executes on selection change in popupmenu1.
+function popupmenu1_Callback(hObject, eventdata, handles)
+% hObject    handle to popupmenu1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = get(hObject,'String') returns popupmenu1 contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from popupmenu1
+
+
+% --- Executes during object creation, after setting all properties.
+function popupmenu1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to popupmenu1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+     set(hObject,'BackgroundColor','white');
+end
+
+%set(hObject, 'String', {'plot(rand(5))', 'plot(sin(1:0.01:25))', 'bar(1:.5:10)', 'plot(membrane)', 'surf(peaks)'});
 
 
 
@@ -170,9 +211,7 @@ function btnBrowser_Callback(hObject, eventdata, handles)
     inputPath = fullfile(imagePath,imageFile);
     set(handles.txtInputfilename,'string',inputPath)
     I = imread(inputPath);
-    ig = rgb2gray(I);
-    
-	
+    %ig = rgb2gray(I);
     %load image in panel
     axes(handles.axes1);
     %hFig = figure(get(handles.axes1,'parent'));%handles.axes1.Parent;
@@ -185,7 +224,7 @@ function btnBrowser_Callback(hObject, eventdata, handles)
     %Panel 2 - show histogram  
     [cell1,cell2]=generateHistogram(I,handles);
     data = struct('img',I, 'imagePath',imagePath,'inputfile', inputPath, ...
-        'ig', ig,'cell1',cell1,'cell2',cell2);
+        'cell1',cell1,'cell2',cell2);
     set(hObject,'UserData',data); 
     %hObject.UserData = data;
     %clear any previous data
@@ -237,7 +276,6 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
             set(handles.editAnalysisfiles,'string',analysisfiles);
             csv1 = fullfile(csvPath, cell1);
             csv2 = fullfile(csvPath, cell2);
-            %status = strcat('Cell 1: ', csv1,'; Cell 2: ', csv2);
             status = sprintf('Cell 1: %s\nCell 2: %s', csv1,csv2);
             updateStatus(handles,status);
             %save to userdata
@@ -248,13 +286,69 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
             configfile =fullfile(csvPath, 'neurites_config.csv');
             if (exist(configfile, 'file') == 2)
                 M = readtable(configfile);
-                loadConfig(M,handles);
+            else
+                hwb = waitbar(0,'Estimating CSV overlay config ...');
+                set(handles.figure1, 'pointer', 'watch')
+                steps = 100;
+                step = 50;
+                waitbar(step / steps)
+                M = estimateOverlay(handles,cell1ID,cell2ID,csv1);
+                delete(hwb);
+                set(handles.figure1, 'pointer', 'arrow')
             end
+            loadConfig(M,handles);
+            msgbox('CSV files loaded. If new, run Register CSV and adjust config')
         end
     else
        errordlg('Requires 2 CSV files','CSV Files error')
     end
-
+    
+%Estimate parameters for overlay of CSV data onto image
+function M = estimateOverlay(handles,C1name,C2name,cell1csv)
+    T = readtable(cell1csv);
+    hfiles = findobj('Tag','btnBrowser');
+    hfdata = get(hfiles,'UserData');
+    I = hfdata.cell1;
+    %CSV data in um
+    rowi = find(T.StartX == min(T.StartX));
+    rowm = find(T.EndX == max(T.EndX));
+    S1 = [T.StartX(rowi),T.StartY(rowi)];
+    S2 = [T.EndX(rowm),T.EndY(rowm)];
+    C1 = cat(1,S1,S2);
+    csvlength = pdist(C1,'euclidean');
+    %Image coords
+    Ic = corner(I,'Harris','SensitivityFactor',0.02);
+    xi = find(Ic(:,1)==min(Ic(:,1)));
+    S3 = Ic(xi,:)
+    xm = find(Ic(:,1)==max(Ic(:,1)));
+    S4 = Ic(xm,:)
+    % Find scale
+    C2 = cat(1,S3,S4);
+    imglength = pdist(C2,'euclidean');
+    Scale = round(imglength/csvlength,1);
+    S = S1 * Scale;
+    
+    %Plot
+    axes(handles.axes2);
+    imshow(I);
+    hold on;
+    %plot(S(1),S(2),'color','b','Marker','o','LineWidth', 2);
+    plot(S3(1),S3(2),'color','y','Marker','x','LineWidth', 2);
+    plot(S4(1),S4(2),'color','r','Marker','x','LineWidth', 2);
+    hold off;
+    %Load data
+    Fit = 10;
+    Shiftx = round(S3(1) - S(1),2);
+    Shifty = round(-S3(2) - S(2),2);
+    Minlength = 10;
+    Tolerance = 1;
+    
+    Cell1 = {C1name};
+    Cell2 = {C2name};
+    M = table(Cell1,Cell2, Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
+    
+        
+        
 function loadConfig(M, handles)
     hCell1 = findobj('Tag','editCell1');
     hCell2 = findobj('Tag','editCell2');
@@ -289,11 +383,11 @@ function saveConfig_Callback(hObject, eventdata, handles)
     hTol = findobj('Tag','editTolerance');
     Cell1 = {get(hCell1,'String')};
     Cell2 = {get(hCell2,'String')};
-    Scale = [str2double(get(hScale,'String'))];
-    Fit = [str2double(get(hFit,'String'))];
-    Shiftx = [str2double(get(hSX,'String'))];
-    Shifty = [str2double(get(hSY,'String'))];
-    Minlength = [str2double(get(hMin,'String'))];
+    Scale = str2double(get(hScale,'String'));
+    Fit = str2double(get(hFit,'String'));
+    Shiftx = str2double(get(hSX,'String'));
+    Shifty = str2double(get(hSY,'String'));
+    Minlength = str2double(get(hMin,'String'));
     Tolerance = str2double(get(hTol,'String'));
 
     T = table(Cell1, Cell2, Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
@@ -410,7 +504,7 @@ if (get(hObject,'Value') > 0)
     hfdata = get(hfiles,'UserData');
     roifile = fullfile(hfdata.imagePath, 'neurites_roi.tif');
     imwrite(BW, roifile);
-    %save data - workaround cannot save userdata in radio button??
+    %save data
     dataroi = struct('roi', BW, 'xi',xi,'yi',yi,'x',x,'y',y);
     %hObject.UserData = dataroi;
     set(hObject,'UserData',dataroi);
@@ -420,9 +514,16 @@ if (get(hObject,'Value') > 0)
     cla;
     imshow(BW)
     title('ROI Mask');
+    %Convert ROI to um2 if csv config loaded
+    hScale = findobj('Tag', 'inputScale');
+    scale = str2double(get(hScale,'String'));
+    if (isempty(scale) || scale ==0)
+        scale = 1
+    end
+    roi_um2 = roi_area / scale;
     %Results table
-    RCols={'ROI NumberPixels', 'ROIArea'};
-    RData=[numPixels, roi_area];
+    RCols={'ROI Number Pixels', 'ROI Area (px)','ROI Area (um2)'};
+    RData=[numPixels, roi_area,roi_um2];
     htable = findobj('Tag','uitableResults');
     set(htable,'data',RData,'ColumnName',RCols);
     %Directions
@@ -562,16 +663,6 @@ for i=1:length(N.Synapses)
     end
 end
 hold off;
-%Save image
-%hFig = handles.axes1.Parent;
-%hIm = hFig.getimage;
-%hSP = imscrollpanel(hFig,hIm)
-%F=getframe(handles.axes1); %select axes in GUI
-%figure(); %new figure
-%image(F.cdata); %show selected axes in new figure
-%saveas(gcf, fullfile(pathname, 'neurites_img.png')); %save figure
-%close(gcf); %and close it
-
 
 %Save data
 [colnames,T] = N.generateTable(types,cell1label, cell2label);
@@ -625,7 +716,131 @@ end
 [cell1,cell2] = SplitCells(I,bg);
 
 
+% --- Executes on button press in btnReview.
+function btnReview_Callback(hObject, eventdata, handles)
+% hObject    handle to btnReview (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+%msgbox('Hello')
+h = findobj('Tag','btnBrowser');
+hData = get(h,'UserData');
+I = hData.img;
+f = figure('WindowStyle','normal');
+im = imshow(I);
+hold on;   
+ %Get Synapse data
+ hId = findobj('Tag','btnIdentify');
+ hNData = get(hId,'UserData');
+ changes = 0; %flag to detect any changes - then refresh export data
+ if (~isempty(hNData) && hNData.numsynapses > 0)
+     N1 = hNData.N;
+     
+     for i=1:length(N1.Synapses)
+         syn = N1.Synapses{i};
+     
+        % plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
+        %    'm','marker','X','linestyle','none','LineWidth', 2);
+         plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
+            'm','marker','X','linestyle','none','LineWidth', 2);
+       k = waitforbuttonpress; %key press
+      
+       try
+           
+           if (k==1)
+               %p1 = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2), 'color','b',...
+              %    'linestyle',':','LineWidth', 1);
+               p2 = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), 'color','b',...
+                  'linestyle','--','LineWidth', 1);
+               
+              %disp(k.CurrentPoint)
+              a = acceptSynapse();
+              
+              if (a)
+                 % msgbox('Accepted');
+                  %gcf
+                  delete(p2);
+              else
+                  while(~a)
+                      dcm_obj = datacursormode(f);
+                      set(dcm_obj,'DisplayStyle','datatip',...
+                        'SnapToDataVertex','off','Enable','on')
+                      msgbox('Click a point on required path, then click Enter.')
+                      % Wait while the user does this.
 
+                      pause 
+                      c_info = getCursorInfo(dcm_obj);
+                      % Add or Remove extra data/line
+                      a = syn.SomapointsC2(:,1);
+                      b = syn.SomapointsC2(:,2);
+                      if(addOrSubtract)
+                          a(end+1) = c_info.Target.XData(c_info.DataIndex);
+                          b(end+1) = c_info.Target.YData(c_info.DataIndex);
+                          XY = cat(2,a,b);            
+                          syn.SomapointsC2 = sortrows(XY);
+                      else
+                          c_info.Target.XData(c_info.DataIndex) = [];
+                          c_info.Target.YData(c_info.DataIndex) = [];
+                          syn.SomapointsC2 = cat(2,c_info.Target.XData',c_info.Target.YData')
+                      end
+                      d = pdist(syn.SomapointsC2,'euclidean');
+                      syn.SomaC2 = (sum(d)/syn.scale);
+                      N1.Synapses{i} = syn; %update
+                      changes=1;
+                      p2.XData = syn.SomapointsC2(:,1);
+                      p2.YData = syn.SomapointsC2(:,2);
+                      refreshdata
+                      dcm_obj.Enable='off';
+                      a = acceptSynapse();
+                   end
+              end
+           end
+       catch ME
+           msg = 'Error during review';
+           causeException = MException('MATLAB:Neurites:dimensions',msg);
+           ME = addCause(ME,causeException);
+       end
+ 
+     end
+     hold off;
+     %Refresh output data
+     if (changes)
+         [colnames,T] = N.generateTable(types,cell1label, cell2label);
+         set(htable,'data',T,'ColumnName',colnames);
+         %save to file
+         hCSV = findobj('Tag','btnAnalysisFiles');
+         csvdata = get(hCSV,'UserData');
+         pathname = csvdata.csvPath;
+         outputfile = fullfile(pathname, 'neurites_data1.csv');
+         saveDataFile(outputfile, colnames, T);
+     end
+ else
+     msgbox('Cannot find synapse data! Run Analysis first.','Error');
+ end
+
+function a = acceptSynapse()
+    prompt = 'Accept this measurement? Y/N [Y]: ';
+    %str = input(prompt,'s');
+    str = questdlg(prompt,'Measurement Check',...
+        'Yes','No','Yes');
+    switch str
+        case 'Yes'
+            a = 1;
+        case 'No'
+            a = 0;
+    end
+
+function a = addOrSubtract()
+    prompt = 'Add or subtract line?: ';
+    %str = input(prompt,'s');
+    str = questdlg(prompt,'Modify measurement',...
+        'Add','Subtract','Add');
+    switch str
+        case 'Add'
+            a = 1;
+        case 'Subtract'
+            a = 0;
+    end
+    
 function editAnalysisfiles_Callback(hObject, eventdata, handles)
 % hObject    handle to editAnalysisfiles (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -799,6 +1014,8 @@ if ( ~isempty(csvdata))
     shiftx = str2double(get(hSX,'String'));
     shifty = str2double(get(hSY,'String'));
     %plot
+    %for (i=1: height(T1)
+        
     X1 = (T1.StartX * hscale) + shiftx;
     Y1 = (T1.StartY * hscale) + shifty;
     axes(handles.axes2);
@@ -947,14 +1164,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in btnReview.
-function btnReview_Callback(hObject, eventdata, handles)
-% hObject    handle to btnReview (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-msgbox('Under development!','Warn');
-
-
 % --------------------------------------------------------------------
 function Menu_About_Callback(hObject, eventdata, handles)
 % hObject    handle to Menu_About (see GCBO)
@@ -990,3 +1199,72 @@ function figure1_CloseRequestFcn(hObject, eventdata, handles)
 
 % Hint: delete(hObject) closes the figure
 delete(hObject);
+
+
+% --------------------------------------------------------------------
+function menu_File_openImg_Callback(hObject, eventdata, handles)
+% hObject    handle to menu_File_openImg (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+hObject2 = findobj('Tag', 'btnBrowser');
+NeuritesAppUI('btnBrowser_Callback',hObject,eventdata,guidata(hObject2))
+
+
+% --------------------------------------------------------------------
+function Menu_SaveImage_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_SaveImage (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+hB = findobj('Tag', 'btnBrowser');
+pathname = hB.UserData.csvPath;
+if (isempty(pathname))
+    pathname = '.';
+end
+saveas(handles.figure1, fullfile(pathname, 'neurites_img.png')); 
+
+
+
+
+% --------------------------------------------------------------------
+function Menu_LoadMask_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_LoadMask (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
+[imageFile, imagePath, filterIndex] = ...
+  uigetfile(fileTypes, ...
+    'Select mask image', ...
+    'MultiSelect', 'off');
+inputPath = fullfile(imagePath,imageFile);
+I = imread(inputPath);
+x,y = size(I);
+xi,yi = [0,0];%%TODO - GET POLYAREA COORDS
+dataroi = struct('roi', I, 'xi',xi,'yi',yi,'x',x,'y',y);
+hB = findObj('Tag', 'radioROI');
+set(hB,'UserData',dataroi);
+
+axes(handles.axes2);
+cla;
+imshow(I)
+title('ROI Mask');
+
+
+% --------------------------------------------------------------------
+function Menu_LoadConfig_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_LoadConfig (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+fileTypes = {  '*.csv', 'CSV files' };
+[imageFile, imagePath, filterIndex] = ...
+  uigetfile(fileTypes, ...
+    'Select neurites config file', ...
+    'MultiSelect', 'off');
+configfile = fullfile(imagePath,imageFile);
+if (exist(configfile, 'file') == 2)
+    M = readtable(configfile);
+    loadConfig(M,handles);
+    msgbox('CSV files loaded - now run Register CSV and adjust config')
+else
+    msgbox('Unable to load config file')
+end
+    
