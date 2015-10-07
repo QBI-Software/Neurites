@@ -44,7 +44,7 @@
 
 function NeuritesApp()
 
-  clear all
+  clear
   close all
   format compact
   %Launch UI

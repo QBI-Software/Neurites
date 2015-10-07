@@ -75,8 +75,66 @@ classdef NeuritesSynapse
               end
           end
       end
+      %remove a branch containing point xy
+      function obj = removeBranch(obj,c,T,x,y)
+          sx = (x - obj.shiftx)/obj.scale;
+          sy = (-y - obj.shifty)/obj.scale;
+          xi = find(T.StartX == sx);
+          yi = find(T.StartY == sy);
+          ci = intersect(xi,yi,'rows');
+          xpoints=[];
+          ypoints=[];
+          if (c==1)
+              somapoints = obj.SomapointsC1;
+              soma = obj.SomaC1;
+          else
+              somapoints = obj.SomapointsC2;
+              soma = obj.SomaC2;
+          end
+          for (i=1:length(ci)) 
+              fR = ci(i);
+              tree = T.Tree(fR);
+              order = T.Order(fR);
+              rows = find(T.Tree == tree & T.Order == order);
+              for(j=1:length(rows))
+                  xpoints(end+1) = (T.StartX(rows(j)) * obj.scale) + obj.shiftx;
+                  ypoints(end+1) = -((T.StartY(rows(j)) * obj.scale) + obj.shifty);
+              end
+          end
+          %remove
+          if (length(xpoints) > 0)
+              saved = [];
+              removed = [];
+              for (j = 1:length(somapoints))
+                if (any(bsxfun(@eq,xpoints(:),somapoints(j,1))) && any(bsxfun(@eq,ypoints(:),somapoints(j,2))))
+                    removed(end+1) = j;
+                    %somapoints(j,:) = [];
+                else
+                    saved = cat(1,saved,somapoints(j,:));
+                end
+              end
+              somapoints = saved;
+              %recalculate synapse
+              soma = obj.calculateDistance(somapoints);
+              %save back
+              if (c==1)
+                obj.SomapointsC1 = somapoints;
+                obj.SomaC1 = soma;
+              else
+                obj.SomapointsC2 = somapoints;
+                obj.SomaC2 = soma;
+              end
+          end
+      end %end function
       
-      
+      function dist = calculateDistance(obj,somapoints)
+          d = 0;
+          for i=1:length(somapoints)-1
+              pts = cat(1, somapoints(i,:), somapoints(i+1,:));
+              d = d + pdist(pts,'euclidean');
+          end
+          dist = d/obj.scale;    
+      end
    end
    
 end

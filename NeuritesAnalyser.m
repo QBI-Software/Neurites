@@ -330,7 +330,7 @@ classdef NeuritesAnalyser
         tabledata =[];
         for i=1:length(obj.Synapses)
             syn = obj.Synapses{i};
-            if (ismember(syn.SynapseType,types))
+            if (~isempty(syn) && ismember(syn.SynapseType,types))
                 
                 %show data in table
                 row1 = [syn.SynapseType ...

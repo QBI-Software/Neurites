@@ -24,7 +24,7 @@ function varargout = NeuritesAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 25-Sep-2015 16:05:55
+% Last Modified by GUIDE v2.5 06-Oct-2015 12:43:55
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -232,7 +232,7 @@ function btnBrowser_Callback(hObject, eventdata, handles)
     set(htable,'Data',[]);
     %or set(htable,'Visible','off')
     %Directions
-    updateStatus(handles,'Image loaded: Proceed to set ROI with ROI tool - dbl-click in ROI to save');
+    updateStatus(handles,'Image loaded. Check split cells correspond to Cell1 and Cell2 labels');
 
 % --- Executes on button press in btnAnalysisFiles.
 function btnAnalysisFiles_Callback(hObject, eventdata, handles)
@@ -241,12 +241,12 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
     fileTypes = {  '*.csv', 'CSV' };
     hCf1 = findobj('Tag', 'editCell1');
-    cell1ID=get(hCf1,'String');% 'DS';
+    cell1ID={get(hCf1,'String')};% 'DS';
     if (iscell(cell1ID))
         cell1ID = strjoin(cell1ID);
     end
-    hCf1 = findobj('Tag', 'editCell2');
-    cell2ID=get(hCf1,'String');%'SBAC';
+    hCf2 = findobj('Tag', 'editCell2');
+    cell2ID={get(hCf2,'String')};%'SBAC';
     if (iscell(cell2ID))
         cell2ID = strjoin(cell2ID);
     end
@@ -258,6 +258,9 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
       uigetfile(fileTypes, ...
 		'Select analysis files', ...
 		'MultiSelect', 'on',csvPath);
+    cell1 = '';
+    cell2 = '';
+    errstr = sprintf('ERROR: Requires 2 CSV files with filenames containing matching cell labels');
     if iscell(csvFile)
         nbfiles = length(csvFile);
         for i=1:nbfiles
@@ -267,10 +270,15 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
                 cell2 = csvFile{i};
             end
         end
-        if (strcmp(cell1, cell1ID) || strcmp(cell2, cell2ID))
-            errstr = sprintf('ERROR: Requires 2 CSV files with filenames containing %s and %s',cell1ID,cell2ID);
+        if (isempty(cell1) || isempty(cell2))
+            if (isempty(cell1))
+                set(hCf1,'ForegroundColor','r');
+            end
+            if (isempty(cell2))
+                set(hCf2,'ForegroundColor','r');
+            end
             errordlg(errstr,'CSV Files error')
-            %updateStatus(handles,errstr);
+           
         else
             analysisfiles = strcat(cell1, ', ', cell2);
             set(handles.editAnalysisfiles,'string',analysisfiles);
@@ -297,10 +305,10 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
                 set(handles.figure1, 'pointer', 'arrow')
             end
             loadConfig(M,handles);
-            msgbox('CSV files loaded. If new, run Register CSV and adjust config')
+            msgbox('CSV files loaded. Check config with Register CSV.')
         end
     else
-       errordlg('Requires 2 CSV files','CSV Files error')
+       errordlg(errstr,'CSV Files error')
     end
     
 %Estimate parameters for overlay of CSV data onto image
@@ -366,6 +374,9 @@ function loadConfig(M, handles)
     set(hSY,'String',num2str(M.Shifty));
     set(hMin,'String',num2str(M.Minlength));
     set(hTol,'String',num2str(M.Tolerance));
+    set(hCell1,'ForegroundColor','k');
+    set(hCell2,'ForegroundColor','k');
+    
 
     % --- Executes on button press in pushbutton9.
 function saveConfig_Callback(hObject, eventdata, handles)
@@ -381,8 +392,8 @@ function saveConfig_Callback(hObject, eventdata, handles)
     hFit = findobj('Tag','editFit');
     hMin = findobj('Tag','editMinlength');
     hTol = findobj('Tag','editTolerance');
-    Cell1 = {get(hCell1,'String')};
-    Cell2 = {get(hCell2,'String')};
+    Cell1 = get(hCell1,'String');
+    Cell2 = get(hCell2,'String');
     Scale = str2double(get(hScale,'String'));
     Fit = str2double(get(hFit,'String'));
     Shiftx = str2double(get(hSX,'String'));
@@ -515,10 +526,10 @@ if (get(hObject,'Value') > 0)
     imshow(BW)
     title('ROI Mask');
     %Convert ROI to um2 if csv config loaded
-    hScale = findobj('Tag', 'inputScale');
+    hScale = findobj('Tag', 'editScale');
     scale = str2double(get(hScale,'String'));
     if (isempty(scale) || scale ==0)
-        scale = 1
+        scale = 1;
     end
     roi_um2 = roi_area / scale;
     %Results table
@@ -721,90 +732,112 @@ function btnReview_Callback(hObject, eventdata, handles)
 % hObject    handle to btnReview (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-%msgbox('Hello')
 h = findobj('Tag','btnBrowser');
 hData = get(h,'UserData');
 I = hData.img;
 f = figure('WindowStyle','normal');
 im = imshow(I);
 hold on;   
- %Get Synapse data
- hId = findobj('Tag','btnIdentify');
- hNData = get(hId,'UserData');
- changes = 0; %flag to detect any changes - then refresh export data
- if (~isempty(hNData) && hNData.numsynapses > 0)
-     N1 = hNData.N;
-     
-     for i=1:length(N1.Synapses)
-         syn = N1.Synapses{i};
-     
-        % plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-        %    'm','marker','X','linestyle','none','LineWidth', 2);
-         plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
+%Get Synapse data
+hId = findobj('Tag','btnIdentify');
+hNData = get(hId,'UserData');
+types = [1];
+hC1 = findobj('Tag','editCell1');
+cell1label = strjoin(get(hC1, 'String'));
+hC2 = findobj('Tag','editCell2');
+cell2label = strjoin(get(hC2, 'String'));
+c=2; %default cell2
+if (~isempty(hNData) && hNData.numsynapses > 0)
+    N1 = hNData.N;
+    changes = 0;
+    deleted = 0;
+    total = length(N1.Synapses);
+    for i=1:total
+        syn = N1.Synapses{i};
+        
+        if (size(strfind(cell2label,'SBAC') > 0))
+            s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
+            'm','marker','X','linestyle','none','LineWidth', 1);
+            csvfile = N1.CSV2;
+            c=2;
+        else
+            s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
             'm','marker','X','linestyle','none','LineWidth', 2);
-       k = waitforbuttonpress; %key press
+            csvfile = N1.CSV1;
+            c=1;
+        end
+        k = waitforbuttonpress; %key press
       
-       try
-           
+        try
            if (k==1)
-               %p1 = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2), 'color','b',...
-              %    'linestyle',':','LineWidth', 1);
-               p2 = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), 'color','b',...
-                  'linestyle','--','LineWidth', 1);
-               
-              %disp(k.CurrentPoint)
-              a = acceptSynapse();
-              
-              if (a)
-                 % msgbox('Accepted');
-                  %gcf
-                  delete(p2);
-              else
-                  while(~a)
-                      dcm_obj = datacursormode(f);
-                      set(dcm_obj,'DisplayStyle','datatip',...
-                        'SnapToDataVertex','off','Enable','on')
-                      msgbox('Click a point on required path, then click Enter.')
-                      % Wait while the user does this.
+               if(c==1)
+                    p2 = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
+                        'color','m','linestyle',':','LineWidth', 1);
+               else
+                    p2 = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
+                        'color','b','linestyle','--','LineWidth', 1);
+               end
+                a = acceptSynapse(i,total);
 
-                      pause 
-                      c_info = getCursorInfo(dcm_obj);
-                      % Add or Remove extra data/line
-                      a = syn.SomapointsC2(:,1);
-                      b = syn.SomapointsC2(:,2);
-                      if(addOrSubtract)
-                          a(end+1) = c_info.Target.XData(c_info.DataIndex);
-                          b(end+1) = c_info.Target.YData(c_info.DataIndex);
-                          XY = cat(2,a,b);            
-                          syn.SomapointsC2 = sortrows(XY);
-                      else
-                          c_info.Target.XData(c_info.DataIndex) = [];
-                          c_info.Target.YData(c_info.DataIndex) = [];
-                          syn.SomapointsC2 = cat(2,c_info.Target.XData',c_info.Target.YData')
-                      end
-                      d = pdist(syn.SomapointsC2,'euclidean');
-                      syn.SomaC2 = (sum(d)/syn.scale);
-                      N1.Synapses{i} = syn; %update
-                      changes=1;
+                if (a == 2) %remove branch
+                  dcm_obj = datacursormode(f);
+                  set(dcm_obj,'DisplayStyle','datatip',...
+                        'SnapToDataVertex','on','Enable','on')
+                  msgbox('Click on a branch to remove it, then click Enter.')
+                  % Wait while the user does this.
+                  pause 
+                  c_info = getCursorInfo(dcm_obj);
+                  cachesyn = syn;
+                  syn = syn.removeBranch(c,csvfile,...
+                      c_info.Target.XData(c_info.DataIndex),...
+                      c_info.Target.YData(c_info.DataIndex));
+                  if(c==1)
+                      p2.XData = syn.SomapointsC1(:,1);
+                      p2.YData = syn.SomapointsC1(:,2);
+                  else
                       p2.XData = syn.SomapointsC2(:,1);
                       p2.YData = syn.SomapointsC2(:,2);
-                      refreshdata
+                  end
+                  v = accept(i, total);
+                  if(v==1)
+                    dcm_obj.Enable='off';
+                    N1.Synapses{i} = syn; %update
+                    changes = changes + 1;
+                  elseif(v == 2)
                       dcm_obj.Enable='off';
-                      a = acceptSynapse();
-                   end
-              end
+                      i = i-1; %repeat
+                  else %reject change
+                     syn = cachesyn;
+                     p2.XData = syn.SomapointsC2(:,1);
+                     p2.YData = syn.SomapointsC2(:,2); 
+                  end
+                  
+                elseif (a == 0) %delete synapse
+                    N1.Synapses{i} = []; 
+                    changes = changes + 1;
+                    deleted = deleted + 1;
+                    delete(s1);
+                    msg = sprintf('Synapse %d of %d deleted',i,total);
+                    updateStatus(handles,msg);
+                
+                end
+                delete(p2);
+ 
            end
        catch ME
-           msg = 'Error during review';
-           causeException = MException('MATLAB:Neurites:dimensions',msg);
-           ME = addCause(ME,causeException);
+           dcm_obj.Enable='off';
+           msg = strcat('MATLAB:Neurites:Review: ', ME.getReport());
+           warning(msg);
+           %rethrow(ME);
+           delete(p2);
        end
  
      end
-     hold off;
+     
      %Refresh output data
-     if (changes)
-         [colnames,T] = N.generateTable(types,cell1label, cell2label);
+     if (changes && acceptChanges)
+         [colnames,T] = N1.generateTable(types,cell1label, cell2label);
+         htable = findobj('Tag','uitableResults');
          set(htable,'data',T,'ColumnName',colnames);
          %save to file
          hCSV = findobj('Tag','btnAnalysisFiles');
@@ -812,32 +845,48 @@ hold on;
          pathname = csvdata.csvPath;
          outputfile = fullfile(pathname, 'neurites_data1.csv');
          saveDataFile(outputfile, colnames, T);
+         msg = sprintf('Accepted %d of %d synapses. Data updated to %s', length(N1.Synapses)-deleted, total, outputfile);
+         updateStatus(handles,msg);
      end
  else
      msgbox('Cannot find synapse data! Run Analysis first.','Error');
  end
 
-function a = acceptSynapse()
-    prompt = 'Accept this measurement? Y/N [Y]: ';
+function a = acceptSynapse(synnum,total)
+    prompt = sprintf('Accept this measurement for synapse %d (%d)?',synnum, total);
     %str = input(prompt,'s');
-    str = questdlg(prompt,'Measurement Check',...
-        'Yes','No','Yes');
+    str = questdlg(prompt,'Synapse Check',...
+        'Yes','Remove branch','Delete synapse','Yes');
     switch str
         case 'Yes'
             a = 1;
+        case 'Remove branch'
+            a = 2;
+        case 'Delete synapse'
+            a = 0;
+    end
+function a = accept(synnum,total)
+    prompt = sprintf('Accept this measurement for synapse %d (%d)?',synnum, total);
+    %str = input(prompt,'s');
+    str = questdlg(prompt,'Synapse change',...
+        'Yes','No','Repeat','Yes');
+    switch str
+        case 'Yes'
+            a = 1;
+        case 'Repeat'
+            a = 2;
         case 'No'
             a = 0;
     end
 
-function a = addOrSubtract()
-    prompt = 'Add or subtract line?: ';
-    %str = input(prompt,'s');
-    str = questdlg(prompt,'Modify measurement',...
-        'Add','Subtract','Add');
+function a = acceptChanges()
+    prompt = 'Accept changes and update results?';
+    str = questdlg(prompt,'Update results',...
+        'Yes','No','Yes');
     switch str
-        case 'Add'
-            a = 1;
-        case 'Subtract'
+        case 'Yes'
+            a=1;
+        case 'No'
             a = 0;
     end
     
@@ -1014,14 +1063,24 @@ if ( ~isempty(csvdata))
     shiftx = str2double(get(hSX,'String'));
     shifty = str2double(get(hSY,'String'));
     %plot
-    %for (i=1: height(T1)
-        
-    X1 = (T1.StartX * hscale) + shiftx;
-    Y1 = (T1.StartY * hscale) + shifty;
+   % X1 = (T1.StartX * hscale) + shiftx;
+  %  Y1 = (T1.StartY * hscale) + shifty;
     axes(handles.axes2);
     imshow(I);
     hold on;
-    plot(X1,-Y1,'color','c','LineStyle','-','LineWidth', 2);
+    XC1 = [];
+    YC1 = [];
+    for (i=1: height(T1))
+        XC1(end+1) = (T1.StartX(i) * hscale) + shiftx;
+        YC1(end+1) = (T1.StartY(i) * hscale) + shifty;
+        
+        if(strcmp(T1.PointType(i),'EP') > 0)
+          plot(XC1,-YC1,'color','c','LineStyle','-','LineWidth', 2);  
+          XC1 = [];
+          YC1 = [];  
+        end
+        
+    end
     hold off;
 end
 
@@ -1170,10 +1229,12 @@ function Menu_About_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 Message = {'QBI Williams Neurites Synapse Analyser' ...
-    'Description: Developed for Simon de Croft (Williams lab) for the '...
-    'detection and analysis of synaptic regions of two neurons.' ...
-    'Developed by Liz Cooper-Williams (e.cooperwilliams@uq.edu.au), (c)Copyright QBI 2015' ...
-    'Version: 1.1 (Sep 2015)'};
+    'Description: Developed for Prof Stephen Williams and Dr Simon de Croft (Williams lab) '...
+    'for the detection and analysis of synaptic regions of two neurons.' ...
+    'Developed by Liz Cooper-Williams (e.cooperwilliams@uq.edu.au)'...
+    '(c) Copyright QBI 2015' ...
+    'Version: 1.x (Sep 2015)' ...
+    'Source: https://github.com/QBI-Software/Neurites'};
 msgbox(Message,'About')
 
 % --------------------------------------------------------------------
@@ -1183,11 +1244,12 @@ function Menu_Help_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 Message = {'Instructions for use' ...
     '1. Load image(tif or jpg), check histogram and split cells' ...
-    '2. Load 2 CSV data files for each cell and check names(eg DS.csv and SBAC.csv)' ...
+    '2. Load 2 CSV data files for each cell and check labels (eg DS.csv and SBAC.csv)' ...
     '3. Configure CSV overlay with Register CSV - adjust configuration values then save config' ...
-    '4. Draw ROI with ROI tool and double click in region to save' ...
+    '4. Draw ROI with ROI tool and double click in region to save (or load from mask with File menu)' ...
     '5. Run analysis with Identify synaptic regions' ...
-    '6. Check results'};
+    '6. Review results - mouse-click per synapse, keybpard press to show path' ...
+    '7. View output data in table and csv file'};
 h = msgbox(Message,'Instructions','Help');
 
 
@@ -1207,7 +1269,7 @@ function menu_File_openImg_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 hObject2 = findobj('Tag', 'btnBrowser');
-NeuritesAppUI('btnBrowser_Callback',hObject,eventdata,guidata(hObject2))
+NeuritesAppUI('btnBrowser_Callback',hObject2,eventdata,handles)
 
 
 % --------------------------------------------------------------------
@@ -1237,16 +1299,34 @@ fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
     'MultiSelect', 'off');
 inputPath = fullfile(imagePath,imageFile);
 I = imread(inputPath);
-x,y = size(I);
-xi,yi = [0,0];%%TODO - GET POLYAREA COORDS
+[x,y] = size(I);
+[r,c] = find(I > 0);
+p = [r(1),c(1)]; %starting point
+contour = bwtraceboundary(I,p,'E',8,Inf,'counterclockwise');
+xi = contour(:,2);
+yi = contour(:,1);
+%save points
 dataroi = struct('roi', I, 'xi',xi,'yi',yi,'x',x,'y',y);
-hB = findObj('Tag', 'radioROI');
+hB = findobj('Tag', 'radioROI');
 set(hB,'UserData',dataroi);
-
+%display roi
 axes(handles.axes2);
 cla;
 imshow(I)
-title('ROI Mask');
+hold on;
+plot(xi,yi,'b','LineWidth',1);
+hold off;
+title('ROI Mask','FontSize', 10);
+updateStatus(handles,'Mask loaded from file');
+axes(handles.axes1);
+hold on;
+plot(xi,yi,'b--','LineWidth',1);
+hold off;
+%save ROI
+hfiles = findobj('Tag','btnBrowser');
+hfdata = get(hfiles,'UserData');
+roifile = fullfile(hfdata.imagePath, 'neurites_roi.tif');
+imwrite(I, roifile);
 
 
 % --------------------------------------------------------------------
@@ -1268,3 +1348,12 @@ else
     msgbox('Unable to load config file')
 end
     
+
+
+% --------------------------------------------------------------------
+function Menu_File_Opencsv_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_File_Opencsv (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+hObject2 = findobj('Tag', 'btnAnalysisFiles');
+NeuritesAppUI('btnAnalysisFiles_Callback',hObject2,eventdata,handles)
