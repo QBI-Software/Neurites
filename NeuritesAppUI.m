@@ -573,7 +573,7 @@ function btnIdentify_Callback(hObject, eventdata, handles)
 % hObject    handle to btnIdentify (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+clearplots();
 % Get grayscale img
 h = findobj('Tag','btnBrowser');
 %data = h.UserData;
@@ -761,145 +761,47 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
     str2 = sprintf('%s end',cell1label);
     str3 = sprintf('%s soma',cell2label);
     str4 = sprintf('%s end',cell2label);
-    options = {str1,str2,str3,str4};
+    options = {'Select type',str1,str2,str3,str4};
     hp = uipanel('Parent',f,'Title','Review controls','FontSize',12,...
              'BackgroundColor','white',...
              'Units','pixels','Position',[5 5 500 100]);
    tth = uicontrol(hp,'Style','text','String','Select Review Type',...
        'Tag','txtReviewStatus',...
-       'Units','pixels','Position',[5 50 100 25]);
-    pth = uicontrol(hp,'Style','popup','String',options,...
+       'Units','pixels','Position',[5 50 100 30]);
+   pth = uicontrol(hp,'Style','popup','String',options,...
        'TooltipString','Select type',...
-       'Units','pixels','Position',[10 5 100 40],...
+       'Units','pixels','Position',[5 5 100 40],...
        'Callback',{@setreviewtype,syn,N1});
    tth1 = uicontrol(hp,'Style','pushbutton','String','Previous',...
-       'Units','pixels','Position',[120 40 80 25],...
+       'Units','pixels','Position',[120 50 100 25],...
        'Callback',{@showtrack,-1,N1});
-   tth5 = uicontrol(hp,'Style','pushbutton','String','Next',...
-       'Units','pixels','Position',[220 40 80 25],...
+   tth2 = uicontrol(hp,'Style','pushbutton','String','Next',...
+       'Units','pixels','Position',[220 50 100 25],...
        'Callback',{@showtrack,1,N1}); 
-   tth4 = uicontrol(hp,'Style','pushbutton','String','Delete Synapse',...
+   tth3 = uicontrol(hp,'Style','checkbox','String','Delete Synapse',...
        'Units','pixels','Position',[120 5 100 25],...
        'Tag','btnReviewDelete',...
        'Callback',{@deleteSynapse,N1});
-   tth3 = uicontrol(hp,'Style','pushbutton','String','Remove Branch',...
+   tth4 = uicontrol(hp,'Style','pushbutton','String','Remove Branch',...
        'Units','pixels','Position',[240 5 100 25],...
-       'HandleVisibility','off'); %%TODO ADD FUNCTION
+       'Callback',{@removeRegion,N1}); 
    
-   tth2 = uicontrol(hp,'Style','pushbutton','String','Accept Changes',...
+   tth5 = uicontrol(hp,'Style','pushbutton','String','Accept Changes',...
        'Units','pixels','Position',[360 5 100 25],...
        'Callback',{@acceptChanges,handles,N1,cell1label, cell2label} );
    
-   
-   
-%end
-    
-   
-%     changes = 0;
-%     deleted = 0;
-%     total = length(N1.Synapses);
-%     for i=1:total
-%         syn = N1.Synapses{i};
-%         
-%         if (size(strfind(cell2label,'SBAC') > 0))
-%             s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
-%             'm','marker','X','linestyle','none','LineWidth', 1);
-%             csvfile = N1.CSV2;
-%             c=2;
-%         else
-%             s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-%             'm','marker','X','linestyle','none','LineWidth', 2);
-%             csvfile = N1.CSV1;
-%             c=1;
-%         end
-%         k = waitforbuttonpress; %key press
-%       
-%         try
-%            if (k==1)
-%                if(c==1)
-%                     p2 = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
-%                         'color','m','linestyle',':','LineWidth', 1);
-%                else
-%                     p2 = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
-%                         'color','b','linestyle','--','LineWidth', 1);
-%                end
-%                 a = acceptSynapse(i,total);
-% 
-%                 if (a == 2) %remove branch
-%                   dcm_obj = datacursormode(f);
-%                   set(dcm_obj,'DisplayStyle','datatip',...
-%                         'SnapToDataVertex','on','Enable','on')
-%                   msgbox('Click on a branch to remove it, then click Enter.')
-%                   % Wait while the user does this.
-%                   pause 
-%                   c_info = getCursorInfo(dcm_obj);
-%                   cachesyn = syn;
-%                   syn = syn.removeBranch(c,csvfile,...
-%                       c_info.Target.XData(c_info.DataIndex),...
-%                       c_info.Target.YData(c_info.DataIndex));
-%                   if(c==1)
-%                       p2.XData = syn.SomapointsC1(:,1);
-%                       p2.YData = syn.SomapointsC1(:,2);
-%                   else
-%                       p2.XData = syn.SomapointsC2(:,1);
-%                       p2.YData = syn.SomapointsC2(:,2);
-%                   end
-%                   v = accept(i, total);
-%                   if(v==1)
-%                     dcm_obj.Enable='off';
-%                     N1.Synapses{i} = syn; %update
-%                     changes = changes + 1;
-%                   elseif(v == 2)
-%                       dcm_obj.Enable='off';
-%                       i = i-1; %repeat
-%                   else %reject change
-%                      syn = cachesyn;
-%                      p2.XData = syn.SomapointsC2(:,1);
-%                      p2.YData = syn.SomapointsC2(:,2); 
-%                   end
-%                   
-%                 elseif (a == 0) %delete synapse
-%                     N1.Synapses{i} = []; 
-%                     changes = changes + 1;
-%                     deleted = deleted + 1;
-%                     delete(s1);
-%                     msg = sprintf('Synapse %d of %d deleted',i,total);
-%                     updateStatus(handles,msg);
-%                 
-%                 end
-%                 delete(p2);
-%  
-%            end
-%        catch ME
-%            dcm_obj.Enable='off';
-%            msg = strcat('MATLAB:Neurites:Review: ', ME.getReport());
-%            warning(msg);
-%            %rethrow(ME);
-%            delete(p2);
-%        end
-%  
-%      end
-%      
-%      %Refresh output data
-%      if (changes && acceptChanges)
-%          [colnames,T] = N1.generateTable(types,cell1label, cell2label);
-%          htable = findobj('Tag','uitableResults');
-%          set(htable,'data',T,'ColumnName',colnames);
-%          %save to file
-%          hCSV = findobj('Tag','btnAnalysisFiles');
-%          csvdata = get(hCSV,'UserData');
-%          pathname = csvdata.csvPath;
-%          outputfile = fullfile(pathname, 'neurites_data_review.csv');
-%          saveDataFile(outputfile, colnames, T);
-%          msg = sprintf('Accepted %d of %d synapses. Data updated to %s', length(N1.Synapses)-deleted, total, outputfile);
-%          updateStatus(handles,msg);
-%      end
+   tth6 = uicontrol(hp,'Style','pushbutton','String','Clear',...
+       'Units','pixels','Position',[320 50 60 25],...
+       'Callback',@clearplots );
+    tth7 = uicontrol(hp,'Style','pushbutton','String','Show All',...
+       'Units','pixels','Position',[400 50 80 25],...
+       'Callback',{@showAll,N1} );
   else
       msgbox('Cannot find synapse data! Run Analysis first.','Error');
 end
 
 function setreviewtype(source,callbackdata,syn,N1)
-    c = source.Value;
+    c = source.Value -1;
     hId = findobj('Tag','btnReview');
     hData = get(hId,'UserData');
     if (~isempty(hData))
@@ -908,34 +810,15 @@ function setreviewtype(source,callbackdata,syn,N1)
         delete(p);
         delete(s);
     end
-    switch c
-        case 1
-            s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            csvfile = N1.CSV1;
-            p = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
-                'color','b','linestyle',':','LineWidth', 2);
-        case 2
-            p = plot(syn.EndpointsC1(:,1),syn.EndpointsC1(:,2),...
-                'color','b','linestyle',':','LineWidth', 2);
-            s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            csvfile = N1.CSV1;
-        case 3
-            s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            csvfile = N1.CSV2;
-            p = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
-                'color','b','linestyle','--','LineWidth', 2);
-        case 4
-            s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            csvfile = N1.CSV2;
-            p = plot(syn.EndpointsC2(:,1),syn.EndpointsC2(:,2), ...
-                'color','b','linestyle','--','LineWidth', 2);
+    linestyle=':';
+    [s1,p] = plottrace(c,syn,linestyle);
+    if c <=2
+        csvfile = N1.CSV1;
+    else
+        csvfile = N1.CSV2;
     end
     %Review Status
-    status = sprintf('Synapse %d of %d', 1, length(N1.Synapses));
+    status = sprintf('Synapse %d of %d (%0.02f um)', 1, length(N1.Synapses),getSynDistance(c,syn));
     hR = findobj('Tag','txtReviewStatus');
     hR.String = status;
     
@@ -944,6 +827,45 @@ function setreviewtype(source,callbackdata,syn,N1)
         'deleted',[],'changed',0);
     set(hId,'UserData',reviewdata);
 
+function d = getSynDistance(c,syn)
+    switch c
+        case 1
+            d = syn.SomaC1;
+        case 2
+            d = syn.NeuriteEndC1;
+        case 3
+            d = syn.SomaC2;
+        case 4
+            d = syn.NeuriteEndC2;
+    end
+    
+function [s1,p] = plottrace(c,syn,linestyle)
+    if (isempty(linestyle))
+        linestyle = ':';
+    end
+    switch c
+        case 1
+            s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
+                'm','marker','X','linestyle','none','LineWidth', 2);
+            p = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
+                'color','b','linestyle',linestyle,'LineWidth', 2);
+        case 2
+            p = plot(syn.EndpointsC1(:,1),syn.EndpointsC1(:,2),...
+                'color','b','linestyle',linestyle,'LineWidth', 2);
+            s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
+                'm','marker','X','linestyle','none','LineWidth', 2);
+        case 3
+            s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
+                'm','marker','X','linestyle','none','LineWidth', 2);
+            p = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
+                'color','b','linestyle',linestyle,'LineWidth', 2);
+        case 4
+            s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
+                'm','marker','X','linestyle','none','LineWidth', 2);
+            p = plot(syn.EndpointsC2(:,1),syn.EndpointsC2(:,2), ...
+                'color','b','linestyle',linestyle,'LineWidth', 2);
+    end
+     
 function p = showtrack(source,callbackdata,ix,N)
     hId = findobj('Tag','btnReview');
     hData = get(hId,'UserData');
@@ -954,55 +876,111 @@ function p = showtrack(source,callbackdata,ix,N)
         delete(s);
         delete(p);
     end
-    i = i + ix;
+    
+    if (i < 1 || i > length(N.Synapses))
+        i = hData.i; %no change
+    else
+        i = i + ix;
+    end
     c = hData.reviewtype;
     syn = N.Synapses{i};
-    switch c
-        case 1
-            s = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            p = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
-                'color','b','linestyle',':','LineWidth', 2);
-        case 2
-            p = plot(syn.EndpointsC1(:,1),syn.EndpointsC1(:,2),...
-                'color','b','linestyle',':','LineWidth', 2);
-            s = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-        case 3
-            s = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            p = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
-                'color','b','linestyle','--','LineWidth', 2);
-        case 4
-            s = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            p = plot(syn.EndpointsC2(:,1),syn.EndpointsC2(:,2), ...
-                'color','b','linestyle','--','LineWidth', 2);
-    end
+    linestyle=':';
+    [s,p] = plottrace(c,syn,linestyle);
+    
     %Review Status
-    status = sprintf('Synapse %d of %d', i, length(N.Synapses));
+    status = sprintf('Synapse %d of %d (%0.02f um)', i, length(N.Synapses),getSynDistance(c,syn));
     hR = findobj('Tag','txtReviewStatus');
     hR.String = status;
+    hD = findobj('Tag','btnReviewDelete');
+    if (ismember(i,hData.deleted))
+        hD.Value = 1;
+        set(p, 'color', [0.5 0.5 0.5]);
+    else
+        hD.Value = 0;
+    end
     hData.p = p;
     hData.i = i;
     hData.s = s;
+    
     set(hId,'UserData',hData);
-  
+
+function showAll(source,callbackdata,N1)
+    hId = findobj('Tag','btnReview');
+    hData = get(hId,'UserData');
+    c = hData.reviewtype;
+    clearplots();
+    for (i=1:length(N1.Synapses))
+        syn = N1.Synapses{i};
+        [s,p] = plottrace(c,syn,'-');
+    end
+    %Also show ROI
+    hRoi = findobj('Tag','radioROI');
+    %roidata = hRoi.UserData;
+    roidata = get(hRoi,'UserData');
+    if (~isempty(roidata))
+        xi = roidata.xi;
+        yi = roidata.yi;
+        plot(xi, yi, '--b','LineWidth', 1);
+    end
+    
+function clearplots(source,callbackdata)
+    cla;
+    h = findobj('Tag','btnBrowser');
+    hData = get(h,'UserData');
+    I = hData.img;
+    %f = figure('WindowStyle','normal');
+    im = imshow(I);
+    
 function deleteSynapse(source, callbackdata,N1)
     hId = findobj('Tag','btnReview');
     hData = get(hId,'UserData');
     i = hData.i;
     hData.deleted(end+1) = i;
-    N1.Synapses{i} = [];
+    
     p = hData.p;
     s = hData.s;
     delete(p);
     delete(s);
     set(hId,'UserData',hData);
     
+function removeRegion(source,callbackdata,N1)
+    hId = findobj('Tag','btnReview');
+    hData = get(hId,'UserData');
+    i = hData.i;
+    c = hData.reviewtype;
+    syn = N1.Synapses{i};
+    csvfile = hData.csvfile;
+    dcm_obj = datacursormode(gcf);
+    set(dcm_obj,'DisplayStyle','datatip',...
+        'SnapToDataVertex','on','Enable','on')
+    msgbox('Click on a branch to remove it, then click Enter.')
+    % Wait while the user does this.
+    pause 
+    c_info = getCursorInfo(dcm_obj);
+    cachesyn = syn;
+    syn = syn.removeBranch(c,csvfile,...
+      c_info.Target.XData(c_info.DataIndex),...
+      c_info.Target.YData(c_info.DataIndex));
+    delete(p);
+    delete(s);
+    linestyle=':';
+    [s,p] = plottrace(c,syn,linestyle);
+    
+    v = accept(i);
+    if(v==1)
+        dcm_obj.Enable='off';
+        N1.Synapses{i} = syn; %update
+        hData.changed = hData.changed + 1;
+    else %reject change
+         syn = cachesyn;
+         [s,p] = plottrace(c,syn,linestyle);
+    end
+    hData.s = s;
+    hData.p = p;
+    set(hId,'UserData',hData);
 
-function a = accept(synnum,total)
-    prompt = sprintf('Accept this measurement for synapse %d (%d)?',synnum, total);
+function a = accept(synnum)
+    prompt = sprintf('Accept this measurement for synapse %d?',synnum);
     %str = input(prompt,'s');
     str = questdlg(prompt,'Synapse change',...
         'Yes','No','Repeat','Yes');
@@ -1019,9 +997,19 @@ function acceptChanges(source,callbackdata,handles,N1,cell1label, cell2label)
     prompt = 'Accept changes and update results?';
     str = questdlg(prompt,'Update results',...
         'Yes','No','Yes');
+    hId = findobj('Tag','btnReview');
+    hData = get(hId,'UserData');
     switch str
         case 'Yes'
             [colnames,T] = N1.generateTable([1],cell1label, cell2label);
+            if (length(hData.deleted) > 0) 
+                %T0 = T;
+%                 for d=hData.deleted(1):length(hData.deleted)
+%                     T(d) = [];
+%                 end
+                
+            end
+                 
              htable = findobj('Tag','uitableResults');
              set(htable,'data',T,'ColumnName',colnames);
              %save to file
@@ -1030,8 +1018,8 @@ function acceptChanges(source,callbackdata,handles,N1,cell1label, cell2label)
              pathname = csvdata.csvPath;
              outputfile = fullfile(pathname, 'neurites_data_review.csv');
              saveDataFile(outputfile, colnames, T);
-             msg = sprintf('Accepted %d of %d synapses. Data updated to %s', length(N1.Synapses)-deleted, total, outputfile);
-             updateStatus(handles,msg);
+             %msg = sprintf('Accepted %d of %d synapses. Data updated to %s', length(N1.Synapses)-deleted, total, outputfile);
+             %updateStatus(handles,msg);
         case 'No'
             a = 0;
     end

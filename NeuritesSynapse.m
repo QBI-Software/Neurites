@@ -35,6 +35,7 @@ classdef NeuritesSynapse
       fR1
       fR2
       
+      
    end
    methods
       
@@ -47,6 +48,7 @@ classdef NeuritesSynapse
         obj.MedianC1 = [rmarkerx,rmarkery];
         obj.MedianC2 = [gmarkerx,gmarkery];
         obj.SynapseType = type;
+        obj.Exclude = 0;
       end
       function [x,y] = img2Coords(obj,imgx, imgy)
         x = (imgx - obj.shiftx)/obj.scale;
