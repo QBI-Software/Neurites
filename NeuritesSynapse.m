@@ -34,7 +34,11 @@ classdef NeuritesSynapse
       SomapointsC2
       fR1
       fR2
-      
+      %calculations
+      ThetaC1
+      ThetaC2
+      RhoC1
+      RhoC2
       
    end
    methods
@@ -48,7 +52,7 @@ classdef NeuritesSynapse
         obj.MedianC1 = [rmarkerx,rmarkery];
         obj.MedianC2 = [gmarkerx,gmarkery];
         obj.SynapseType = type;
-        obj.Exclude = 0;
+        
       end
       function [x,y] = img2Coords(obj,imgx, imgy)
         x = (imgx - obj.shiftx)/obj.scale;
@@ -61,19 +65,22 @@ classdef NeuritesSynapse
 
       end
       %isequal based on measurements only
-      function rslt = isequal(obj,synA)
+      function rslt = isequal(obj,synA,tol)
           rslt = 0;
           %isa(x,'className');
           if (isa(synA,'NeuritesSynapse'))
               if (~isempty(obj.NeuriteLengthC1))
-                if ((synA.NeuriteLengthC1 == obj.NeuriteLengthC1) && ...
-                  (synA.NeuriteLengthC2 == obj.NeuriteLengthC2) && ... 
-                  (synA.DistanceC1 == obj.DistanceC1) && ...
-                  (synA.DistanceC2 == obj.DistanceC2) && ...
-                  (synA.BranchPointC1 == obj.BranchPointC1) && ...
-                  (synA.BranchPointC2 == obj.BranchPointC2) )
-                  rslt = 1;
-                end
+                  diffs = [
+                    abs(synA.NeuriteLengthC1 - obj.NeuriteLengthC1),...
+                    abs(synA.NeuriteLengthC2 - obj.NeuriteLengthC2),...
+                    abs(synA.DistanceC1 - obj.DistanceC1), ...
+                    abs(synA.DistanceC2 - obj.DistanceC2), ...
+                    abs(synA.BranchPointC1 - obj.BranchPointC1), ...
+                    abs(synA.BranchPointC2 - obj.BranchPointC2) ];
+                  if (isempty(find(diffs > tol)))
+                    rslt = 1;
+                  end
+                
               end
           end
       end
@@ -81,6 +88,8 @@ classdef NeuritesSynapse
       function obj = removeBranch(obj,c,T,x,y)
           sx = (x - obj.shiftx)/obj.scale;
           sy = (-y - obj.shifty)/obj.scale;
+          sx =round(sx,4);
+          sy =round(sy,4);
           xi = find(T.StartX == sx);
           yi = find(T.StartY == sy);
           ci = intersect(xi,yi,'rows');
@@ -88,10 +97,10 @@ classdef NeuritesSynapse
           ypoints=[];
           if (c==1)
               somapoints = obj.SomapointsC1;
-              soma = obj.SomaC1;
+              %soma = obj.SomaC1;
           else
               somapoints = obj.SomapointsC2;
-              soma = obj.SomaC2;
+              %soma = obj.SomaC2;
           end
           for (i=1:length(ci)) 
               fR = ci(i);
@@ -99,8 +108,10 @@ classdef NeuritesSynapse
               order = T.Order(fR);
               rows = find(T.Tree == tree & T.Order == order);
               for(j=1:length(rows))
-                  xpoints(end+1) = (T.StartX(rows(j)) * obj.scale) + obj.shiftx;
-                  ypoints(end+1) = -((T.StartY(rows(j)) * obj.scale) + obj.shifty);
+                  if (abs(rows(j)- fR) <= 50) %limit deviation from required row - could cause issues if large branch removed
+                      xpoints(end+1) = (T.StartX(rows(j)) * obj.scale) + obj.shiftx;
+                      ypoints(end+1) = -((T.StartY(rows(j)) * obj.scale) + obj.shifty);
+                  end
               end
           end
           %remove
