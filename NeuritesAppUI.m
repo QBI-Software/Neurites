@@ -318,13 +318,25 @@ function M = estimateOverlay(handles,C1name,C2name,cell1csv)
     hfdata = get(hfiles,'UserData');
     I = hfdata.cell1;
     %CSV data in um
-    rowi = find(T.StartX == min(T.StartX));
-    rowm = find(T.EndX == max(T.EndX));
-    S1 = [T.StartX(rowi),T.StartY(rowi)];
-    S2 = [T.EndX(rowm),T.EndY(rowm)];
+    mi = min(T.StartX);
+    if (min(T.EndX) < mi)
+        rowi = find(T.EndX == min(T.EndX));
+        S1 = [T.EndX(rowi),T.EndY(rowi)];
+    else
+        rowi = find(T.StartX == min(T.StartX));
+        S1 = [T.StartX(rowi),T.StartY(rowi)];
+    end
+    mx = max(T.StartX);
+    if (max(T.EndX) > mx)
+        rowi = find(T.EndX == max(T.EndX));
+        S2 = [T.EndX(rowi),T.EndY(rowi)];
+    else
+        rowi = find(T.StartX == max(T.StartX));
+        S2 = [T.StartX(rowi),T.StartY(rowi)];
+    end
     C1 = cat(1,S1,S2);
     csvlength = pdist(C1,'euclidean');
-    %Image coords
+    %Image coords - %TODO Needs better method at detecting min/max values
     Ic = corner(I,'Harris','SensitivityFactor',0.02);
     xi = find(Ic(:,1)==min(Ic(:,1)));
     S3 = Ic(xi,:)
@@ -1585,8 +1597,17 @@ function btnCompass_Callback(hObject, eventdata, handles)
      [x1,y1] = pol2cart(theta1,rho1);
      [x2,y2] = pol2cart(theta2,rho2);
      view(90,-90)
-     compass(x1,-y1,'-r');
+     hCell1 = findobj('Tag','editCell1');
+     if (strcmp(get(hCell1, 'String'),'DS'))
+        color1 = '-r';
+        color2 = '-g';
+     else
+        color1 = '-g';
+        color2 = '-r';
+     end
+     
+     compass(x1,-y1,color1);
      hold on
-     compass(x2,-y2,'-g');
+     compass(x2,-y2,color2);
      
  end
