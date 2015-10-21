@@ -768,7 +768,10 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
 %     total = length(N1.Synapses);
     i = 1;
     syn = N1.Synapses{i};
-    
+    plot(N1.soma1.centroid(:,1), N1.soma1.centroid(:,2),'color', 'b',...
+            'marker','o','linestyle','none','LineWidth', 2);
+    plot(N1.soma2.centroid(:,1), N1.soma2.centroid(:,2),'color','b',...
+            'marker','o','linestyle','none','LineWidth', 2);
     % Add buttons to gui
     str1 = sprintf('%s soma',cell1label);
     str2 = sprintf('%s end',cell1label);

@@ -71,17 +71,35 @@ classdef NeuritesAnalyser
       end
       
       function soma = findSoma(obj, rbw)
-        BW = imfill(rbw,'holes');
-        [B,L,N,A] = bwboundaries(BW,8,'noholes');
-        stats=  regionprops(L, 'Centroid', 'Area', 'Perimeter')
+        %BW = imfill(rbw,'holes');
+        BW = bwmorph(rbw,'majority');
+        se1 = strel('rectangle',[10 2]);
+        se2 = strel('rectangle',[2 10]);
+        BW1 = imopen(BW,se1);
+        BW1 = imopen(BW1,se2);
+        [B,L,N,A] = bwboundaries(BW1);%,8,'noholes');
+        stats=  regionprops(L, 'Centroid', 'Area', 'Perimeter',...
+            'MajorAxisLength','MinorAxisLength','Eccentricity','Solidity')
         Centroid = cat(1,stats.Centroid);
         Perimeter = cat(1,stats.Perimeter);
+        Eccentricity = cat(1,stats.Eccentricity);
         Area = cat(1,stats.Area);
-
+        %Radii = cat(1,sqrt(Area/pi));
+        %circles = find(Radii > 5 & Radii < 100);
+        %circles = find(Area == max(Area));
+        circles = find(Eccentricity == min(Eccentricity));
+        
         %get soma (largest area)
-        idx = find(Area == max(Area));
+        idx = max(circles);
         c = Centroid(idx,:);
+        
         soma = NeuritesSoma(Area(idx),Perimeter(idx),c);
+        figure
+        imshow(label2rgb(L, @jet, [.5 .5 .5]))
+        hold on
+        plot(soma.centroid(:,1), soma.centroid(:,2),'color', 'r',...
+            'marker','o','linestyle','none','LineWidth', 2);
+        
       end
       
       function obj = findSegments(obj,minlength,tol)
@@ -288,7 +306,7 @@ classdef NeuritesAnalyser
                     syn.BranchTypeC1 = T1.PointType(fR);
                     [syn.NeuriteEndC1,syn.EndpointsC1] = findLength2NeuriteEnd(syn,xC,yC,T1,fR);
                     [syn.SomaC1,syn.SomapointsC1] = findSomaPoints(syn,xC,yC,T1,fR);
-                    [syn.ThetaC1,syn.RhoC1] = findAngleSoma(syn.MedianC1(1),syn.MedianC1(2),obj.soma1);
+                    [syn.ThetaC1,syn.RhoC1] = findAngleSoma(syn.MedianC1(1),syn.MedianC1(2),obj.soma1,syn.scale);
                 end
                 
                 %median coords - Cell2
@@ -312,7 +330,7 @@ classdef NeuritesAnalyser
                     syn.BranchTypeC2 = T2.PointType(fR);
                     [syn.NeuriteEndC2,syn.EndpointsC2] = findLength2NeuriteEnd(syn,xC,yC,T2,fR);
                     [syn.SomaC2,syn.SomapointsC2] = findSomaPoints(syn,xC,yC,T2,fR);
-                    [syn.ThetaC2,syn.RhoC2] = findAngleSoma(syn.MedianC2(1),syn.MedianC2(2),obj.soma2);
+                    [syn.ThetaC2,syn.RhoC2] = findAngleSoma(syn.MedianC2(1),syn.MedianC2(2),obj.soma2,syn.scale);
                 end
                 %check if duplicate
                 syn
@@ -427,11 +445,11 @@ function a = isEndpoint(x,y, segment, nrange)
     end
         
 end
-function [theta,rho] = findAngleSoma(x,y,soma)
+function [theta,rho] = findAngleSoma(x,y,soma,scale)
         dx = x-soma.centroid(:,1); %x1-x0
         dy = y-soma.centroid(:,2); %y1-y0
         theta= atan2(dy,dx); %radians
-        rho = sqrt(dx.^2 + dy.^2);
+        rho = sqrt(dx.^2 + dy.^2)/scale;
 end
 function [a12,a13,a23] = findTriangleAngles(p1,p2,p3)
     %extract lengths of triangle sides
