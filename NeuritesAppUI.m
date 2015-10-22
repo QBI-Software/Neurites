@@ -940,6 +940,10 @@ function showAll(source,callbackdata)
     N1 = hNData.N;
     c = hData.reviewtype;
     clearplots();
+    plot(N1.soma1.centroid(:,1), N1.soma1.centroid(:,2),'color', 'b',...
+            'marker','o','linestyle','none','LineWidth', 2);
+    plot(N1.soma2.centroid(:,1), N1.soma2.centroid(:,2),'color','b',...
+            'marker','o','linestyle','none','LineWidth', 2);
     for (i=1:length(N1.Synapses))
         syn = N1.Synapses{i};
         [s,p] = plottrace(c,syn,'-');

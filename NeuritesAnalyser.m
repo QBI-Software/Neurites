@@ -71,13 +71,20 @@ classdef NeuritesAnalyser
       end
       
       function soma = findSoma(obj, rbw)
+        %Isolate soma for analysis by removing dendrites
         %BW = imfill(rbw,'holes');
         BW = bwmorph(rbw,'majority');
         se1 = strel('rectangle',[10 2]);
         se2 = strel('rectangle',[2 10]);
+        se3 = strel('square',30);
         BW1 = imopen(BW,se1);
         BW1 = imopen(BW1,se2);
         [B,L,N,A] = bwboundaries(BW1);%,8,'noholes');
+        if (N > 30) %thick dendrites - be brutal
+            BW1 = imopen(BW1,se3);
+            [B,L,N,A] = bwboundaries(BW1);
+        end
+        
         stats=  regionprops(L, 'Centroid', 'Area', 'Perimeter',...
             'MajorAxisLength','MinorAxisLength','Eccentricity','Solidity')
         Centroid = cat(1,stats.Centroid);
@@ -86,19 +93,24 @@ classdef NeuritesAnalyser
         Area = cat(1,stats.Area);
         %Radii = cat(1,sqrt(Area/pi));
         %circles = find(Radii > 5 & Radii < 100);
-        %circles = find(Area == max(Area));
-        circles = find(Eccentricity == min(Eccentricity));
-        
-        %get soma (largest area)
-        idx = max(circles);
+        idx = find(Area == max(Area));
+        %Iterate to find another suitable region  TODO
+        B = sort(Area,'descend');
+        i = 2;
+        while (Eccentricity(idx) > 0.8 & i<= length(Area) ) %not a circle
+            %sort Area values by max first then take second
+            idx = find(Area == B(i));
+            i = i+1;
+        end
+               
         c = Centroid(idx,:);
         
         soma = NeuritesSoma(Area(idx),Perimeter(idx),c);
-        figure
-        imshow(label2rgb(L, @jet, [.5 .5 .5]))
-        hold on
-        plot(soma.centroid(:,1), soma.centroid(:,2),'color', 'r',...
-            'marker','o','linestyle','none','LineWidth', 2);
+%         figure
+%         imshow(label2rgb(L, @jet, [.5 .5 .5]))
+%         hold on
+%         plot(soma.centroid(:,1), soma.centroid(:,2),'color', 'r',...
+%             'marker','o','linestyle','none','LineWidth', 2);
         
       end
       
