@@ -1589,8 +1589,8 @@ function btnCompass_Callback(hObject, eventdata, handles)
          syn = N.Synapses{i};
          theta1(end+1) = syn.ThetaC1;
          theta2(end+1) = syn.ThetaC2;
-         rho1(end+1) = syn.RhoC1 / syn.scale; %micron
-         rho2(end+1) = syn.RhoC2 / syn.scale;
+         rho1(end+1) = syn.RhoC1;
+         rho2(end+1) = syn.RhoC2;
          
      end
      %polar(theta1,rho1);
