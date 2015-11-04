@@ -318,7 +318,7 @@ classdef NeuritesAnalyser
                     syn.BranchTypeC1 = T1.PointType(fR);
                     [syn.NeuriteEndC1,syn.EndpointsC1] = findLength2NeuriteEnd(syn,xC,yC,T1,fR);
                     [syn.SomaC1,syn.SomapointsC1] = findSomaPoints(syn,xC,yC,T1,fR);
-                    [syn.ThetaC1,syn.RhoC1] = findAngleSoma(syn.MedianC1(1),syn.MedianC1(2),obj.soma1,syn.scale);
+                    [syn.ThetaC1,syn.RhoC1,syn.DegC1] = findAngleSoma(syn.MedianC1(1),syn.MedianC1(2),obj.soma1,syn.scale);
                 end
                 
                 %median coords - Cell2
@@ -342,7 +342,7 @@ classdef NeuritesAnalyser
                     syn.BranchTypeC2 = T2.PointType(fR);
                     [syn.NeuriteEndC2,syn.EndpointsC2] = findLength2NeuriteEnd(syn,xC,yC,T2,fR);
                     [syn.SomaC2,syn.SomapointsC2] = findSomaPoints(syn,xC,yC,T2,fR);
-                    [syn.ThetaC2,syn.RhoC2] = findAngleSoma(syn.MedianC2(1),syn.MedianC2(2),obj.soma2,syn.scale);
+                    [syn.ThetaC2,syn.RhoC2,syn.DegC2] = findAngleSoma(syn.MedianC2(1),syn.MedianC2(2),obj.soma2,syn.scale);
                 end
                 %check if duplicate
                 syn
@@ -364,9 +364,9 @@ classdef NeuritesAnalyser
     function [colnames,tabledata] = generateTable(obj,types, cell1label, cell2label)
          colnames = {'Type' 'Cell1_X' 'Cell1_Y' 'Cell2_X' 'Cell2_Y',...
              'Cell1_order' 'Cell1_length' 'Cell1_distance' 'Cell1_soma' 'Cell1_end'  ...
-             'Cell1_theta' 'Cell1_rho' ...
+             'Cell1_theta' 'Cell1_rho' 'Cell1_deg' ...
              'Cell2_order' 'Cell2_length' 'Cell2_distance' 'Cell2_soma' 'Cell2_end'  ...
-             'Cell2_theta' 'Cell2_rho' ...
+             'Cell2_theta' 'Cell2_rho' 'Cell2_deg' ...
              'Cell1_StartX' 'Cell1_StartY' 'Cell2_StartX' 'Cell2_StartY' };
          colnames = strrep(colnames, 'Cell1', cell1label);
          colnames = strrep(colnames, 'Cell2', cell2label);
@@ -384,10 +384,10 @@ classdef NeuritesAnalyser
                     syn.MedianC1 syn.MedianC2 ...
                     syn.BranchPointC1 syn.NeuriteLengthC1 syn.DistanceC1 ...
                     syn.SomaC1 syn.NeuriteEndC1 ...
-                    syn.ThetaC1 syn.RhoC1 ...
+                    syn.ThetaC1 syn.RhoC1 syn.DegC1 ...
                     syn.BranchPointC2 syn.NeuriteLengthC2 syn.DistanceC2 ...
                     syn.SomaC2 syn.NeuriteEndC2 ...
-                    syn.ThetaC2 syn.RhoC2 ...
+                    syn.ThetaC2 syn.RhoC2 syn.DegC2 ...
                     syn.StartXY1 syn.StartXY2];
                 tabledata = cat(1,tabledata,row1);
             end
@@ -457,23 +457,18 @@ function a = isEndpoint(x,y, segment, nrange)
     end
         
 end
-function [theta,rho] = findAngleSoma(x,y,soma,scale)
+
+function [theta,rho,deg] = findAngleSoma(x,y,soma,scale)
         dx = x-soma.centroid(:,1); %x1-x0
         dy = y-soma.centroid(:,2); %y1-y0
         theta= atan2(dy,dx); %radians
         rho = sqrt(dx.^2 + dy.^2)/scale;
+        deg = radtodeg(theta); %degrees
+        if (deg < 0)
+            deg = deg + 360; %negatives
+        end
 end
-function [a12,a13,a23] = findTriangleAngles(p1,p2,p3)
-    %extract lengths of triangle sides
-    s12 = norm(p2 - p1);
-    s13 = norm(p3 - p1);
-    s23 = norm(p3 - p2);
-    % theta = arccos((a^2 + b^2 - c^2)/2*a*b)
-    a12 = acosd((s13^2 + s23^2 - s12^2)/(2*s13*s23))
-    a13 = acosd((s12^2 + s23^2 - s13^2)/(2*s12*s23))
-    a23 = acosd((s12^2 + s13^2 - s23^2)/(2*s12*s13))
-    
-end
+
 
 % Returns row index matching xy coords
 function fR=findCSVIndex(xC,yC,StartX,StartY,tol)

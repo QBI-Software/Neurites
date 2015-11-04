@@ -241,12 +241,12 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
     fileTypes = {  '*.csv', 'CSV' };
     hCf1 = findobj('Tag', 'editCell1');
-    cell1ID={get(hCf1,'String')};% 'DS';
+    cell1ID=get(hCf1,'String');% 'DS';
     if (iscell(cell1ID))
         cell1ID = strjoin(cell1ID);
     end
     hCf2 = findobj('Tag', 'editCell2');
-    cell2ID={get(hCf2,'String')};%'SBAC';
+    cell2ID=get(hCf2,'String');%'SBAC';
     if (iscell(cell2ID))
         cell2ID = strjoin(cell2ID);
     end
@@ -333,15 +333,35 @@ function M = estimateOverlay(handles,C1name,C2name,cell1csv)
     else
         rowi = find(T.StartX == max(T.StartX));
         S2 = [T.StartX(rowi),T.StartY(rowi)];
+        
+    end
+    if (length(S1(:,1)) > 1)
+        rowi = find(S1(:,2) == max(S1(:,2)));
+        S1 = [S1(rowi,1),S1(rowi,2)];
+    end
+    if (length(S2(:,1)) > 1)
+        rowi = find(S2(:,2) == max(S2(:,2)));
+        S2 = [S2(rowi,1),S2(rowi,2)];
     end
     C1 = cat(1,S1,S2);
     csvlength = pdist(C1,'euclidean');
     %Image coords - %TODO Needs better method at detecting min/max values
+    %enhance image
+    %se = strel('disk',5);
+	%Io = imopen(I,se);
     Ic = corner(I,'Harris','SensitivityFactor',0.02);
     xi = find(Ic(:,1)==min(Ic(:,1)));
     S3 = Ic(xi,:)
     xm = find(Ic(:,1)==max(Ic(:,1)));
     S4 = Ic(xm,:)
+    if (length(S3(:,1)) > 1)
+        rowi = find(S3(:,2) == max(S3(:,2)));
+        S3 = [S3(rowi,1),S3(rowi,2)];
+    end
+    if (length(S4(:,1)) > 1)
+        rowi = find(S4(:,2) == max(S4(:,2)));
+        S4 = [S4(rowi,1),S4(rowi,2)];
+    end
     % Find scale
     C2 = cat(1,S3,S4);
     imglength = pdist(C2,'euclidean');
@@ -358,6 +378,7 @@ function M = estimateOverlay(handles,C1name,C2name,cell1csv)
     hold off;
     %Load data
     Fit = 10;
+    
     Shiftx = round(S3(1) - S(1),2);
     Shifty = round(-S3(2) - S(2),2);
     Minlength = 10;
@@ -600,11 +621,17 @@ if (~isempty(roidata))
     roi = roidata.roi;
     xi = roidata.xi;
     yi = roidata.yi;
-elseif(~isempty(csvdata))
-    roi = fullfile(csvdata.csvPath, 'neurites_roi.tif');
 else
-    errordlg('Please set ROI first','ROI error!')
-    return
+    if(~isempty(csvdata))
+        roi = fullfile(csvdata.csvPath, 'neurites_roi.tif');
+        if(~exist(roi, 'file'))
+            errordlg('Please set ROI first','ROI error!')
+            return
+        end
+    else
+        errordlg('Please set ROI first','ROI error!')
+        return
+    end
 end
 
 
@@ -780,7 +807,7 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
     options = {'Select type',str1,str2,str3,str4};
     hp = uipanel('Parent',f,'Title','Review controls','FontSize',12,...
              'Tag','panelReview','BackgroundColor','white',...
-             'Units','pixels','Position',[5 5 500 100]);
+             'Units','pixels','Position',[5 5 600 100]);
    tth = uicontrol(hp,'Style','text','String','Select Review Type',...
        'Tag','txtReviewStatus',...
        'Units','pixels','Position',[5 50 100 30]);
@@ -799,19 +826,25 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
        'Tag','btnReviewDelete',...
        'Visible','off','Callback',{@deleteSynapse});
    tth4 = uicontrol(hp,'Style','pushbutton','String','Remove Branch',...
-       'Units','pixels','Position',[240 5 100 25],...
-       'Visible','off','Callback',{@removeRegion}); 
-   
+       'Units','pixels','Position',[220 5 100 25],...
+       'Visible','off','Callback',{@removeRegion});
+     
    tth5 = uicontrol(hp,'Style','pushbutton','String','Accept Changes',...
-       'Units','pixels','Position',[360 5 100 25],...
+       'Units','pixels','Position',[330 5 100 25],...
        'Visible','off','Callback',{@acceptChanges,handles,cell1label, cell2label} );
    
    tth6 = uicontrol(hp,'Style','pushbutton','String','Clear',...
        'Units','pixels','Position',[320 50 60 25],...
        'Visible','off','Callback',@clearplots );
-    tth7 = uicontrol(hp,'Style','pushbutton','String','Show All',...
+   tth7 = uicontrol(hp,'Style','pushbutton','String','Show All',...
        'Units','pixels','Position',[400 50 80 25],...
        'Visible','off','Callback',{@showAll} );
+   %Change Soma centroids
+    tth8 = uicontrol(hp, 'Style','pushbutton','String','Change Soma Centroids',...
+       'Tag','btnSomaCentroids',...
+       'Units','pixels','Position',[450 5 120 25],...
+       'Visible','off','Callback',{@changeSoma} );
+    
   else
       msgbox('Cannot find synapse data! Run Analysis first.','Error');
 end
@@ -931,7 +964,32 @@ function p = showtrack(source,callbackdata,ix)
     hData.s = s;
     
     set(hId,'UserData',hData);
-
+    
+function changeSoma(source,callbackdata)
+    hId = findobj('Tag','btnIdentify');
+    hNData = get(hId,'UserData');
+    N1 = hNData.N;
+    s1 = [N1.soma1.centroid(:,1), N1.soma1.centroid(:,2)]
+    s2 = [N1.soma2.centroid(:,1), N1.soma2.centroid(:,2)]
+    prompt = {'Enter Soma 1 x,y coords:','Enter Soma 2 x,y coords:'};
+    dlg_title = 'Change Soma centroid positions';
+    num_lines = 1;
+    defaultans = {num2str(s1),num2str(s2)};
+    answer = inputdlg(prompt,dlg_title,num_lines,defaultans)
+    %save results
+    a1 = strsplit(answer{1},' ');
+    a2 = strsplit(answer{2},' ');
+    N1.soma1.centroid = [str2num(a1{1}) str2num(a1{2})]
+    N1.soma2.centroid = [str2num(a2{1}) str2num(a2{2})]
+    clearplots();
+    plot(N1.soma1.centroid(:,1), N1.soma1.centroid(:,2),'color', 'b',...
+            'marker','o','linestyle','none','LineWidth', 2);
+    plot(N1.soma2.centroid(:,1), N1.soma2.centroid(:,2),'color','b',...
+            'marker','o','linestyle','none','LineWidth', 2);
+    %save back
+    hNData.N = N1;
+    set(hId,'UserData',hNData);
+    
 function showAll(source,callbackdata)
     hId = findobj('Tag','btnReview');
     hData = get(hId,'UserData');
@@ -1600,11 +1658,13 @@ function btnCompass_Callback(hObject, eventdata, handles)
          rho2(end+1) = syn.RhoC2;
          
      end
-     %polar(theta1,rho1);
+     
      [x1,y1] = pol2cart(theta1,rho1);
      [x2,y2] = pol2cart(theta2,rho2);
-     view(90,-90)
+     
      hCell1 = findobj('Tag','editCell1');
+     hCell2 = findobj('Tag','editCell2');
+     %Add legend relative to cell label
      if (strcmp(get(hCell1, 'String'),'DS'))
         color1 = '-r';
         color2 = '-g';
@@ -1617,4 +1677,5 @@ function btnCompass_Callback(hObject, eventdata, handles)
      hold on
      compass(x2,-y2,color2);
      
+     %legend(get(hCell1, 'String'),get(hCell2, 'String'))
  end

@@ -37,8 +37,10 @@ classdef NeuritesSynapse
       %calculations
       ThetaC1
       ThetaC2
+      DegC1
       RhoC1
       RhoC2
+      DegC2
       
    end
    methods
