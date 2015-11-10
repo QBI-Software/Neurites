@@ -52,7 +52,8 @@ classdef NeuritesAnalyser
          obj.maskedG = obj.gbw; % Simply a copy at first.
          %obj.maskedG = bwmorph(obj.gbw,'skel', Inf);
          obj.maskedG(~obj.Iroi) = 0;  % Set all non-keeper pixels to zero.
-         
+         %Unload from memory
+         obj.I = 0;
       end
       
       function obj = set.Segments(obj,segments)
