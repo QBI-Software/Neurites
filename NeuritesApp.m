@@ -77,6 +77,8 @@ function NeuritesApp()
   clear
   close all
   format compact
+  feature('jit',0)
+  feature('accel',0)
   %Launch UI
   NeuritesAppUI()
   

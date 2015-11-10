@@ -201,10 +201,10 @@ function btnBrowser_Callback(hObject, eventdata, handles)
 % hObject    handle to btnBrowser (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-
+    
     fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
     
-    [imageFile, imagePath, filterIndex] = ...
+    [imageFile, imagePath, ~] = ...
       uigetfile(fileTypes, ...
 		'Select neuron image', ...
 		'MultiSelect', 'off');
@@ -254,7 +254,7 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
     %hfdata = hfiles.UserData;
     hfdata = get(hfiles,'UserData');
     csvPath = hfdata.imagePath;
-    [csvFile, csvPath, filterIndex] = ...
+    [csvFile, csvPath, ~] = ...
       uigetfile(fileTypes, ...
 		'Select analysis files', ...
 		'MultiSelect', 'on',csvPath);
@@ -286,6 +286,16 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
             csv2 = fullfile(csvPath, cell2);
             status = sprintf('Cell 1: %s\nCell 2: %s', csv1,csv2);
             updateStatus(handles,status);
+            %Check CSV headers
+            hdrs = 'Tree,Order,Start X,Start Y,Start Z,End X,End Y,End Z,Point Type,Length(µm),Length To Beginning(µm)';
+            
+            r1 = checkHeaders(csv1,hdrs);
+            r2 = checkHeaders(csv2,hdrs);
+            if (length(r1) > 1 || length(r2) > 1)
+                errhdr = sprintf('ERROR: CSV file headers need to match: %s. \nFields incorrect:%s %s', hdrs,r1,r2);
+                errordlg(errhdr,'CSV Files error')
+                return 
+            end
             %save to userdata
             data = struct('csvPath', csvPath, 'cell1file', cell1, 'cell2file',cell2);
             %hObject.UserData = data;
@@ -313,26 +323,26 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
     
 %Estimate parameters for overlay of CSV data onto image
 function M = estimateOverlay(handles,C1name,C2name,cell1csv)
-    T = readtable(cell1csv);
+    Tb = readtable(cell1csv);
     hfiles = findobj('Tag','btnBrowser');
     hfdata = get(hfiles,'UserData');
-    I = hfdata.cell1;
+    Img = hfdata.cell1;
     %CSV data in um
-    mi = min(T.StartX);
-    if (min(T.EndX) < mi)
-        rowi = find(T.EndX == min(T.EndX));
-        S1 = [T.EndX(rowi),T.EndY(rowi)];
+    mi = min(Tb.StartX);
+    if (min(Tb.EndX) < mi)
+        rowi = find(Tb.EndX == min(Tb.EndX));
+        S1 = [Tb.EndX(rowi),Tb.EndY(rowi)];
     else
-        rowi = find(T.StartX == min(T.StartX));
-        S1 = [T.StartX(rowi),T.StartY(rowi)];
+        rowi = find(Tb.StartX == min(Tb.StartX));
+        S1 = [Tb.StartX(rowi),Tb.StartY(rowi)];
     end
-    mx = max(T.StartX);
-    if (max(T.EndX) > mx)
-        rowi = find(T.EndX == max(T.EndX));
-        S2 = [T.EndX(rowi),T.EndY(rowi)];
+    mx = max(Tb.StartX);
+    if (max(Tb.EndX) > mx)
+        rowi = find(Tb.EndX == max(Tb.EndX));
+        S2 = [Tb.EndX(rowi),Tb.EndY(rowi)];
     else
-        rowi = find(T.StartX == max(T.StartX));
-        S2 = [T.StartX(rowi),T.StartY(rowi)];
+        rowi = find(Tb.StartX == max(Tb.StartX));
+        S2 = [Tb.StartX(rowi),Tb.StartY(rowi)];
         
     end
     if (length(S1(:,1)) > 1)
@@ -345,14 +355,22 @@ function M = estimateOverlay(handles,C1name,C2name,cell1csv)
     end
     C1 = cat(1,S1,S2);
     csvlength = pdist(C1,'euclidean');
-    %Image coords - %TODO Needs better method at detecting min/max values
-    %enhance image
-    %se = strel('disk',5);
-	%Io = imopen(I,se);
-    Ic = corner(I,'Harris','SensitivityFactor',0.02);
-    xi = find(Ic(:,1)==min(Ic(:,1)));
+    %Image coords - 
+    LI = bwlabel(Img);
+    s = regionprops(LI, 'Area', 'BoundingBox','Extrema');
+    i = 1;
+    Area = cat(1,s.Area);
+    if (length(s) > 1)
+        i = find(Area==max(Area));
+    end
+%     S3=s(i).Extrema(1,:);
+%     S4=s(i).Extrema(4,:);
+%     S3=[s(i).BoundingBox(1) s(i).BoundingBox(2)];
+%     S4=[s(i).BoundingBox(1)+s(i).BoundingBox(3)  s(i).BoundingBox(2)+s(i).BoundingBox(4)];
+    Ic = corner(Img,'Harris','SensitivityFactor',0.02);
+    xi = Ic(:,1)==min(Ic(:,1));
     S3 = Ic(xi,:)
-    xm = find(Ic(:,1)==max(Ic(:,1)));
+    xm = Ic(:,1)==max(Ic(:,1));
     S4 = Ic(xm,:)
     if (length(S3(:,1)) > 1)
         rowi = find(S3(:,2) == max(S3(:,2)));
@@ -365,12 +383,12 @@ function M = estimateOverlay(handles,C1name,C2name,cell1csv)
     % Find scale
     C2 = cat(1,S3,S4);
     imglength = pdist(C2,'euclidean');
-    Scale = round(imglength/csvlength,1);
+    Scale = round(imglength/csvlength,1)
     S = S1 * Scale;
     
     %Plot
     axes(handles.axes2);
-    imshow(I);
+    imshow(Img);
     hold on;
     %plot(S(1),S(2),'color','b','Marker','o','LineWidth', 2);
     plot(S3(1),S3(2),'color','y','Marker','x','LineWidth', 2);
@@ -471,8 +489,23 @@ function [cell1,cell2]=generateHistogram(I, handles)
     [cell1,cell2] = SplitCells(I,bg);
 
 
-
-
+function rtn = checkHeaders(csvfile,hdrs)
+    rtn = 0;           
+    fid = fopen(csvfile);
+    C = textscan(fid, '%s %s %s %s %s %s %s %s %s %s %s', 'delimiter', ',', ...
+                 'treatAsEmpty', {'NA', 'na'}, ...
+                 'commentStyle', '//');
+    fclose(fid);
+    for i=1: length(C)
+        v = strjoin(C{1,i}(1));
+        if (size(strfind(hdrs,v)) == 0)
+            csvfile
+            rtn = v
+            break
+        end
+    end
+    
+        
 
 % --------------------------------------------------------------------
 
