@@ -80,14 +80,14 @@ classdef NeuritesAnalyser
         se3 = strel('square',30);
         BW1 = imopen(BW,se1);
         BW1 = imopen(BW1,se2);
-        [B,L,N,A] = bwboundaries(BW1);%,8,'noholes');
+        [B,L,N,~] = bwboundaries(BW1);%,8,'noholes');
         if (N > 30) %thick dendrites - be brutal
             BW1 = imopen(BW1,se3);
-            [B,L,N,A] = bwboundaries(BW1);
+            [B,L,N,~] = bwboundaries(BW1);
         end
         
         stats=  regionprops(L, 'Centroid', 'Area', 'Perimeter',...
-            'MajorAxisLength','MinorAxisLength','Eccentricity','Solidity')
+            'MajorAxisLength','MinorAxisLength','Eccentricity','Solidity');
         Centroid = cat(1,stats.Centroid);
         Perimeter = cat(1,stats.Perimeter);
         Eccentricity = cat(1,stats.Eccentricity);
@@ -98,7 +98,7 @@ classdef NeuritesAnalyser
         %Iterate to find another suitable region  TODO
         B = sort(Area,'descend');
         i = 2;
-        while (Eccentricity(idx) > 0.8 & i<= length(Area) ) %not a circle
+        while (Eccentricity(idx) > 0.8 && i<= length(Area) ) %not a circle
             %sort Area values by max first then take second
             idx = find(Area == B(i));
             i = i+1;
@@ -106,7 +106,7 @@ classdef NeuritesAnalyser
                
         c = Centroid(idx,:);
         
-        soma = NeuritesSoma(Area(idx),Perimeter(idx),c);
+        soma = NeuritesSoma(Area(idx),Perimeter(idx),c)
 %         figure
 %         imshow(label2rgb(L, @jet, [.5 .5 .5]))
 %         hold on
@@ -220,7 +220,7 @@ classdef NeuritesAnalyser
             imshow(obj.maskedR)
             hold on;
         end
-        synapses = {};
+        synapses = cell(1,length(obj.Segments));%{};
         for p=1:length(obj.Segments)
             type = 1; %en-passant as default
             redSegment = obj.Segments{p}{1};
@@ -287,6 +287,7 @@ classdef NeuritesAnalyser
         %tol = 10;
         saved ={};
         ctr=1;
+        tic
         for i = 1: length(obj.Synapses)
             syn = obj.Synapses{i};
             
@@ -303,12 +304,9 @@ classdef NeuritesAnalyser
                 
                 if (isempty(fR))
                     warning('Warning: C1 synapse coords not found - %d, %d', xC,yC)
-                    %continue
-                    syn.StartXY1 = [0 0];
-                    syn.NeuriteLengthC1 = 0;
-                    syn.DistanceC1= 0;
-                    syn.BranchPointC1 = 0;
-                    syn.BranchTypeC1 = 0;
+                    %ignore this one
+                    syn.init();
+                    continue
                 else
                     %load it up
                     syn.fR1 =fR;
@@ -327,12 +325,9 @@ classdef NeuritesAnalyser
                 fR=findCSVIndex(xC,yC,T2.StartX,T2.StartY,fit);
                 if (isempty(fR))
                     warning('Warning: C2 synapse coords not found - %d, %d', xC,yC)
-                    %continue
-                    syn.StartXY2 = [0 0];
-                    syn.NeuriteLengthC2 = 0;
-                    syn.DistanceC2= 0;
-                    syn.BranchPointC2 = 0;
-                    syn.BranchTypeC2 = 0;
+                    %ignore this one
+                    syn.init();
+                    continue
                 else
                     %load it up
                     syn.fR2=fR;
@@ -346,20 +341,21 @@ classdef NeuritesAnalyser
                     [syn.ThetaC2,syn.RhoC2,syn.DegC2] = findAngleSoma(syn.MedianC2(1),syn.MedianC2(2),obj.soma2,syn.scale);
                 end
                 %check if duplicate
-                syn
+                %syn
                 if (~obj.duplicateSynapse(syn, i,fit))
                     %save it
                     %obj.Synapses{i} = syn;
+                    %status = 'Loading synapse ' + i
                     saved{ctr} = syn;
                     ctr = ctr + 1;
                 end
                 
             end
         end
-       
+        toc  
     %length(obj.Synapses)
     obj.Synapses = saved;
-    length(obj.Synapses)
+    Total = length(obj.Synapses)
 
     end
     function [colnames,tabledata] = generateTable(obj,types, cell1label, cell2label)
@@ -375,7 +371,7 @@ classdef NeuritesAnalyser
 %             'DS_length' 'DS_distance' 'DS_order' 'DS_end' 'DS_soma'  ...
 %             'SBAC_length' 'SBAC_distance' 'SBAC_order' 'SBAC_end' 'SBAC_soma' ...
 %             'DS_StartX' 'DS_StartY' 'SBAC_StartX' 'SBAC_StartY' };
-        tabledata =[];
+        tabledata =zeros(length(obj.Synapses),25); %preallocate
         for i=1:length(obj.Synapses)
             syn = obj.Synapses{i};
             if (~isempty(syn) && ismember(syn.SynapseType,types))
@@ -390,7 +386,8 @@ classdef NeuritesAnalyser
                     syn.SomaC2 syn.NeuriteEndC2 ...
                     syn.ThetaC2 syn.RhoC2 syn.DegC2 ...
                     syn.StartXY1 syn.StartXY2];
-                tabledata = cat(1,tabledata,row1);
+                %tabledata = cat(1,tabledata,row1);
+                tabledata(i,:) = row1;
             end
         end
     end
@@ -442,21 +439,6 @@ function c = findLength(region, resolution)
         V = [x1 y1;x2 y2];
         c = pdist(V,'euclidean') * resolution;
     end
-end
-
-%if x,y is at either end of segment within nrange of pixels as [1 1]
-function a = isEndpoint(x,y, segment, nrange)
-    [m,mrc] = min(segment); %m is min values in each col, mrc is [row,col] of min val
-    [n,nrc] = max(segment);
-    min1 = segment(mrc(1),:);
-    max1 = segment(nrc(1),:);
-    a= 0;
-    b = [y,x];
-      
-    if (length(b(abs(b-min1)<= nrange))==2 || length(b(abs(b-max1)<= nrange))==2)
-        a = 1;
-    end
-        
 end
 
 function [theta,rho,deg] = findAngleSoma(x,y,soma,scale)

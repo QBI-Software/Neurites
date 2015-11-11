@@ -56,6 +56,32 @@ classdef NeuritesSynapse
         obj.SynapseType = type;
         
       end
+      function init(obj)
+        obj.StartXY1 = [0 0];
+        obj.NeuriteLengthC1 = 0;
+        obj.DistanceC1= 0;
+        obj.BranchPointC1 = 0;
+        obj.BranchTypeC1 = 0;
+        obj.NeuriteEndC1 = [0 0];
+        obj.EndpointsC1 = [];
+        obj.SomaC1 = 0;
+        obj.SomapointsC1 = [];
+        obj.ThetaC1 = 0;
+        obj.RhoC1 = 0;
+        obj.DegC1 = 0;
+        obj.StartXY2 = [0 0];
+        obj.NeuriteLengthC2 = 0;
+        obj.DistanceC2= 0;
+        obj.BranchPointC2 = 0;
+        obj.BranchTypeC2 = 0;
+        obj.NeuriteEndC2 = [0 0];
+        obj.EndpointsC2 = [];
+        obj.SomaC2 = 0;
+        obj.SomapointsC2 = [];
+        obj.ThetaC2 = 0;
+        obj.RhoC2 = 0;
+        obj.DegC2 = 0;
+      end
       function [x,y] = img2Coords(obj,imgx, imgy)
         x = (imgx - obj.shiftx)/obj.scale;
         y = (-imgy - obj.shifty)/obj.scale;
