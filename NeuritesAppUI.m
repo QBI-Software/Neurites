@@ -24,7 +24,7 @@ function varargout = NeuritesAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 13-Oct-2015 16:36:00
+% Last Modified by GUIDE v2.5 12-Nov-2015 17:43:58
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -231,6 +231,9 @@ function btnBrowser_Callback(hObject, eventdata, handles)
     htable = findobj('Tag','uitableResults');
     set(htable,'Data',[]);
     %or set(htable,'Visible','off')
+    %Clear configuration
+    clearConfig(handles,0);
+    clearCSVdata(handles);
     %Directions
     updateStatus(handles,'Image loaded. Check split cells correspond to Cell1 and Cell2 labels');
 
@@ -245,6 +248,51 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
     if (iscell(cell1ID))
         cell1ID = strjoin(cell1ID);
     end
+    
+    hfiles = findobj('Tag','btnBrowser');
+    %hfdata = hfiles.UserData;
+    hfdata = get(hfiles,'UserData');
+    csvPath = hfdata.imagePath;
+    [csvFile, csvPath, ~] = ...
+      uigetfile(fileTypes, ...
+		'Select analysis files', ...
+		'MultiSelect', 'off',csvPath);
+    cell1 = csvFile;
+    set(handles.editAnalysisfiles1,'string',csvFile);
+    csv1 = fullfile(csvPath, csvFile);
+    status = sprintf('Cell 1: %s', csv1);
+    updateStatus(handles,status);
+    %Check CSV headers
+    hdrs = 'Tree,Order,StartX,StartY,StartZ,EndX,EndY,EndZ,PointType,Length(µm),LengthToBeginning(µm)';
+    r1 = checkHeaders(csv1,hdrs);
+    if (length(r1) > 1)
+        errhdr = sprintf('ERROR: CSV file headers need to match: %s. \nFields incorrect:%s %s', hdrs,r1);
+        errordlg(errhdr,'CSV Files error')
+        return 
+    end
+    %save to userdata
+    data = get(hObject,'UserData');
+    if (isempty(data))
+        data = struct('csvPath', csvPath, 'cell1file', cell1, 'cell1ID',cell1ID);
+    else
+        data.csvPath = csvPath;
+        data.cell1file = cell1;
+        data.cell1ID = cell1ID;
+    end
+    %hObject.UserData = data;
+    set(hObject,'UserData',data);
+    if (isfield(data,'cell1file') && isfield(data,'cell2file'))
+         msgbox('CSV files loaded. Run configuration with Register CSV.')
+    end
+    
+    
+ 
+% --- Executes on button press in btnAnalysisFiles.
+function btnAnalysisFiles2_Callback(hObject, eventdata, handles)
+% hObject    handle to btnAnalysisFiles (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    fileTypes = {  '*.csv', 'CSV' };
     hCf2 = findobj('Tag', 'editCell2');
     cell2ID=get(hCf2,'String');%'SBAC';
     if (iscell(cell2ID))
@@ -256,70 +304,34 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
     csvPath = hfdata.imagePath;
     [csvFile, csvPath, ~] = ...
       uigetfile(fileTypes, ...
-		'Select analysis files', ...
-		'MultiSelect', 'on',csvPath);
-    cell1 = '';
-    cell2 = '';
-    errstr = sprintf('ERROR: Requires 2 CSV files with filenames containing matching cell labels');
-    if iscell(csvFile)
-        nbfiles = length(csvFile);
-        for i=1:nbfiles
-            if (size(strfind(csvFile{i},cell1ID)) > 0)
-                cell1 = csvFile{i};
-            elseif (size(strfind(csvFile{i}, cell2ID)) > 0)
-                cell2 = csvFile{i};
-            end
-        end
-        if (isempty(cell1) || isempty(cell2))
-            if (isempty(cell1))
-                set(hCf1,'ForegroundColor','r');
-            end
-            if (isempty(cell2))
-                set(hCf2,'ForegroundColor','r');
-            end
-            errordlg(errstr,'CSV Files error')
-           
-        else
-            analysisfiles = strcat(cell1, ', ', cell2);
-            set(handles.editAnalysisfiles,'string',analysisfiles);
-            csv1 = fullfile(csvPath, cell1);
-            csv2 = fullfile(csvPath, cell2);
-            status = sprintf('Cell 1: %s\nCell 2: %s', csv1,csv2);
-            updateStatus(handles,status);
-            %Check CSV headers
-            hdrs = 'Tree,Order,Start X,Start Y,Start Z,End X,End Y,End Z,Point Type,Length(µm),Length To Beginning(µm)';
-            
-            r1 = checkHeaders(csv1,hdrs);
-            r2 = checkHeaders(csv2,hdrs);
-            if (length(r1) > 1 || length(r2) > 1)
-                errhdr = sprintf('ERROR: CSV file headers need to match: %s. \nFields incorrect:%s %s', hdrs,r1,r2);
-                errordlg(errhdr,'CSV Files error')
-                return 
-            end
-            %save to userdata
-            data = struct('csvPath', csvPath, 'cell1file', cell1, 'cell2file',cell2);
-            %hObject.UserData = data;
-            set(hObject,'UserData',data);
-            %load config data if present
-            configfile =fullfile(csvPath, 'neurites_config.csv');
-            if (exist(configfile, 'file') == 2)
-                M = readtable(configfile);
-            else
-                hwb = waitbar(0,'Estimating CSV overlay config ...');
-                set(handles.figure1, 'pointer', 'watch')
-                steps = 100;
-                step = 50;
-                waitbar(step / steps)
-                M = estimateOverlay(handles,cell1ID,cell2ID,csv1);
-                delete(hwb);
-                set(handles.figure1, 'pointer', 'arrow')
-            end
-            loadConfig(M,handles);
-            msgbox('CSV files loaded. Check config with Register CSV.')
-        end
-    else
-       errordlg(errstr,'CSV Files error')
+		'Select analysis file', ...
+		'MultiSelect', 'off',csvPath);
+    cell2 = csvFile;
+    set(handles.editAnalysisfiles2,'string',csvFile);
+    csv2 = fullfile(csvPath, csvFile);
+    status = sprintf('Cell 2: %s', csv2);
+    updateStatus(handles,status);
+    %Check CSV headers
+    hdrs = 'Tree,Order,StartX,StartY,StartZ,EndX,EndY,EndZ,PointType,Length(µm),LengthToBeginning(µm)';
+    r1 = checkHeaders(csv2,hdrs);
+    if (length(r1) > 1)
+        errhdr = sprintf('ERROR: CSV file headers need to match: %s. \nFields incorrect:%s %s', hdrs,r1);
+        errordlg(errhdr,'CSV Files error')
+        return 
     end
+    %save to userdata
+    hCsv1 = findobj('Tag','btnAnalysisFiles');
+    hcdata = get(hCsv1,'UserData');
+    if (isempty(hcdata))
+        hcdata = struct('csvPath', csvPath, 'cell2file',cell2, 'cell2ID',cell2ID);
+    else
+        hcdata.cell2file = cell2;
+        hcdata.cell2ID = cell2ID;
+    end
+    set(hCsv1,'UserData',hcdata);
+    if (isfield(hcdata,'cell1file') && isfield(hcdata,'cell2file'))
+         msgbox('CSV files loaded. Check config with Register CSV.')
+    end        
     
 %Estimate parameters for overlay of CSV data onto image
 function M = estimateOverlay(handles,C1name,C2name,cell1csv)
@@ -427,7 +439,35 @@ function loadConfig(M, handles)
     set(hTol,'String',num2str(M.Tolerance));
     set(hCell1,'ForegroundColor','k');
     set(hCell2,'ForegroundColor','k');
-    
+
+function clearConfig(handles,clearlabels)
+    initval = '';
+    hCell1 = findobj('Tag','editCell1');
+    hCell2 = findobj('Tag','editCell2');
+    hScale = findobj('Tag','editScale');
+    hSX = findobj('Tag','editShiftx');
+    hSY = findobj('Tag','editShifty');
+    hFit = findobj('Tag','editFit');
+    hMin = findobj('Tag','editMinlength');
+    hTol = findobj('Tag','editTolerance');
+    if (clearlabels)
+        set(hCell1,'String',initval);
+        set(hCell2,'String',initval);
+    end
+    set(hScale,'String',initval);
+    set(hFit,'String',initval);
+    set(hSX,'String',initval);
+    set(hSY,'String',initval);
+    set(hMin,'String',initval);
+    set(hTol,'String',initval);
+
+function clearCSVdata(handles)
+    hCf0 = findobj('Tag', 'btnAnalysisFiles');
+    hCf1 = findobj('Tag', 'editAnalysisfiles1');
+    hCf2 = findobj('Tag', 'editAnalysisfiles2');
+    set(hCf0,'UserData',{});
+    set(hCf1,'String','');
+    set(hCf2,'String','');
 
     % --- Executes on button press in pushbutton9.
 function saveConfig_Callback(hObject, eventdata, handles)
@@ -498,6 +538,7 @@ function rtn = checkHeaders(csvfile,hdrs)
     fclose(fid);
     for i=1: length(C)
         v = strjoin(C{1,i}(1));
+        v = strrep(v,' ','');
         if (size(strfind(hdrs,v)) == 0)
             csvfile
             rtn = v
@@ -667,7 +708,33 @@ else
     end
 end
 
+% Get configuration
+hScale = findobj('Tag','editScale');
+if (isempty(get(hScale,'String')))
+    errordlg('Please set Configuration first with Register CSV','Configuration error!')
+    return
+end
+h1 = findobj('Tag', 'editMinlength');
+minlength = str2double(get(h1,'String'));
+h2 = findobj('Tag', 'editTolerance');
+tolerance = str2double(get(h2,'String'));
+h3 = findobj('Tag', 'checkboxShowplots');
+showplots = get(h3,'Value');
+types =[1];
 
+hSX = findobj('Tag','editShiftx');
+hSY = findobj('Tag','editShifty');
+hFit = findobj('Tag','editFit');
+
+scale = str2double(get(hScale,'String'));
+shiftx = str2double(get(hSX,'String'));
+shifty = str2double(get(hSY,'String'));
+fit = str2double(get(hFit,'String'));
+hC1 = findobj('Tag','editCell1');
+cell1label = get(hC1, 'String');
+hC2 = findobj('Tag','editCell2');
+cell2label = get(hC2, 'String');
+%Run analysis
 hwb = waitbar(0,'Running analysis ...');
 steps = 100;
 step = 10;
@@ -679,28 +746,6 @@ cla;
 N = NeuritesAnalyser(data.inputfile,roi,data.cell1,data.cell2);
 
 title('Analysed ROI');
-
-%configuration
-h1 = findobj('Tag', 'editMinlength');
-minlength = str2double(get(h1,'String'));
-h2 = findobj('Tag', 'editTolerance');
-tolerance = str2double(get(h2,'String'));
-h3 = findobj('Tag', 'checkboxShowplots');
-showplots = get(h3,'Value');
-types =[1];
-hScale = findobj('Tag','editScale');
-hSX = findobj('Tag','editShiftx');
-hSY = findobj('Tag','editShifty');
-hFit = findobj('Tag','editFit');
-scale = str2double(get(hScale,'String'));
-shiftx = str2double(get(hSX,'String'));
-shifty = str2double(get(hSY,'String'));
-fit = str2double(get(hFit,'String'));
-hC1 = findobj('Tag','editCell1');
-cell1label = get(hC1, 'String');
-hC2 = findobj('Tag','editCell2');
-cell2label = get(hC2, 'String');
-%Run analysis
 N = N.findSegments(minlength,tolerance);
 step = step + 10;
 waitbar(step / steps)
@@ -838,6 +883,7 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
     str3 = sprintf('%s soma',cell2label);
     str4 = sprintf('%s end',cell2label);
     options = {'Select type',str1,str2,str3,str4};
+    colouroptions = {'Blue (default)','Red','Yellow','Cyan','Magenta','Black'};
     hp = uipanel('Parent',f,'Title','Review controls','FontSize',12,...
              'Tag','panelReview','BackgroundColor','white',...
              'Units','pixels','Position',[5 5 600 100]);
@@ -855,7 +901,7 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
        'Units','pixels','Position',[220 50 100 25],...
        'Visible','off','Callback',{@showtrack,1}); 
    tth3 = uicontrol(hp,'Style','checkbox','String','Delete Synapse',...
-       'Units','pixels','Position',[120 5 100 25],...
+       'Units','pixels','Position',[400 50 120 25],...
        'Tag','btnReviewDelete',...
        'Visible','off','Callback',{@deleteSynapse});
    tth4 = uicontrol(hp,'Style','pushbutton','String','Remove Branch',...
@@ -870,18 +916,29 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
        'Units','pixels','Position',[320 50 60 25],...
        'Visible','off','Callback',@clearplots );
    tth7 = uicontrol(hp,'Style','pushbutton','String','Show All',...
-       'Units','pixels','Position',[400 50 80 25],...
+       'Units','pixels','Position',[450 5 120 25],...
        'Visible','off','Callback',{@showAll} );
    %Change Soma centroids
-    tth8 = uicontrol(hp, 'Style','pushbutton','String','Change Soma Centroids',...
+    tth8 = uicontrol(hp, 'Style','pushbutton','String','Soma Centroids',...
        'Tag','btnSomaCentroids',...
-       'Units','pixels','Position',[450 5 120 25],...
-       'Visible','off','Callback',{@changeSoma} );
-    
+       'Units','pixels','Position',[120 5 100 25],...
+       'Visible','on','Callback',{@changeSoma} );
+   %Change colour of overlay
+    tth9 = uicontrol(hp,'Style','popup','String',colouroptions,...
+       'TooltipString','Select colour',...
+       'Units','pixels','Position',[5 -20 100 40],...
+       'Callback',{@setcolour});
   else
       msgbox('Cannot find synapse data! Run Analysis first.','Error');
 end
-
+function setcolour(source,callbackdata)
+    c = source.Value;
+    colours = ['b','r','y','c','m','k'];
+    hId = findobj('Tag','btnReview');
+    hData = get(hId,'UserData');
+    hData.colour =colours(c);
+    set(hId,'UserData',hData);
+    
 function setreviewtype(source,callbackdata,syn,N1)
     c = source.Value -1;
     hId = findobj('Tag','btnReview');
@@ -893,12 +950,14 @@ function setreviewtype(source,callbackdata,syn,N1)
         delete(s);
         deleted = hData.deleted;
         changed = hData.changed;
+        colour = hData.colour;
     else
         deleted = [];
         changed = [];
+        colour = 'b';
     end
     linestyle=':';
-    [s1,p] = plottrace(c,syn,linestyle);
+    [s1,p] = plottrace(c,syn,linestyle,colour);
     if c <=2
         csvfile = N1.CSV1;
     else
@@ -916,7 +975,7 @@ function setreviewtype(source,callbackdata,syn,N1)
     end 
     %save data
     reviewdata = struct('i',1,'s',s1,'reviewtype',c,'p',p,'csvfile',csvfile,...
-        'deleted',deleted,'changed',changed);
+        'deleted',deleted,'changed',changed,'colour',colour);
     set(hId,'UserData',reviewdata);
 
 function d = getSynDistance(c,syn)
@@ -931,7 +990,10 @@ function d = getSynDistance(c,syn)
             d = syn.NeuriteEndC2;
     end
     
-function [s1,p] = plottrace(c,syn,linestyle)
+function [s1,p] = plottrace(c,syn,linestyle,colour)
+    if (isempty(colour))
+        colour = 'b';
+    end
     if (isempty(linestyle))
         linestyle = ':';
     end
@@ -940,22 +1002,22 @@ function [s1,p] = plottrace(c,syn,linestyle)
             s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
                 'm','marker','X','linestyle','none','LineWidth', 2);
             p = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
-                'color','b','linestyle',linestyle,'LineWidth', 2);
+                'color',colour,'linestyle',linestyle,'LineWidth', 2);
         case 2
             p = plot(syn.EndpointsC1(:,1),syn.EndpointsC1(:,2),...
-                'color','b','linestyle',linestyle,'LineWidth', 2);
+                'color',colour,'linestyle',linestyle,'LineWidth', 2);
             s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
                 'm','marker','X','linestyle','none','LineWidth', 2);
         case 3
             s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
                 'm','marker','X','linestyle','none','LineWidth', 2);
             p = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
-                'color','b','linestyle',linestyle,'LineWidth', 2);
+                'color',colour,'linestyle',linestyle,'LineWidth', 2);
         case 4
             s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
                 'm','marker','X','linestyle','none','LineWidth', 2);
             p = plot(syn.EndpointsC2(:,1),syn.EndpointsC2(:,2), ...
-                'color','b','linestyle',linestyle,'LineWidth', 2);
+                'color',colour,'linestyle',linestyle,'LineWidth', 2);
     end
      
 function p = showtrack(source,callbackdata,ix)
@@ -979,7 +1041,8 @@ function p = showtrack(source,callbackdata,ix)
     c = hData.reviewtype;
     syn = N.Synapses{i};
     linestyle=':';
-    [s,p] = plottrace(c,syn,linestyle);
+    colour = hData.colour;
+    [s,p] = plottrace(c,syn,linestyle,colour);
     
     %Review Status
     status = sprintf('Synapse %d of %d (%0.02f um)', i, length(N.Synapses),getSynDistance(c,syn));
@@ -1020,6 +1083,7 @@ function changeSoma(source,callbackdata)
     plot(N1.soma2.centroid(:,1), N1.soma2.centroid(:,2),'color','b',...
             'marker','o','linestyle','none','LineWidth', 2);
     %save back
+    N1 = N1.updateSomaCalculations();
     hNData.N = N1;
     set(hId,'UserData',hNData);
     
@@ -1030,6 +1094,7 @@ function showAll(source,callbackdata)
     hNData = get(hId,'UserData');
     N1 = hNData.N;
     c = hData.reviewtype;
+    colour = hData.colour;
     clearplots();
     plot(N1.soma1.centroid(:,1), N1.soma1.centroid(:,2),'color', 'b',...
             'marker','o','linestyle','none','LineWidth', 2);
@@ -1037,7 +1102,7 @@ function showAll(source,callbackdata)
             'marker','o','linestyle','none','LineWidth', 2);
     for (i=1:length(N1.Synapses))
         syn = N1.Synapses{i};
-        [s,p] = plottrace(c,syn,'-');
+        [s,p] = plottrace(c,syn,'-',colour);
          if (ismember(i,hData.deleted))
             set(p, 'color', [0.5 0.5 0.5]);
          end
@@ -1180,7 +1245,7 @@ function acceptChanges(source,callbackdata,handles,cell1label, cell2label)
                  hNData.N = N1;
              end
              
-             msg = sprintf('Changed %d synaptic regions. Deleted %d synaptic regions. Data updated to %s', length(hData.changed),length(hData.deleted), outputfile);
+             msg = sprintf('Changed %d synaptic regions. Deleted %d synaptic regions. \nData updated to %s', length(hData.changed),length(hData.deleted), outputfile);
              updateStatus(handles,msg);
              set(hNId,'UserData',hNData);
              %Reset deleted and changed
@@ -1194,18 +1259,18 @@ function acceptChanges(source,callbackdata,handles,cell1label, cell2label)
             a = 0;
     end
     
-function editAnalysisfiles_Callback(hObject, eventdata, handles)
-% hObject    handle to editAnalysisfiles (see GCBO)
+function editAnalysisfiles1_Callback(hObject, eventdata, handles)
+% hObject    handle to editAnalysisfiles1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of editAnalysisfiles as text
-%        str2double(get(hObject,'String')) returns contents of editAnalysisfiles as a double
+% Hints: get(hObject,'String') returns contents of editAnalysisfiles1 as text
+%        str2double(get(hObject,'String')) returns contents of editAnalysisfiles1 as a double
 
 
 % --- Executes during object creation, after setting all properties.
-function editAnalysisfiles_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to editAnalysisfiles (see GCBO)
+function editAnalysisfiles1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editAnalysisfiles1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -1343,7 +1408,7 @@ function editCell2_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
+            
 
 % --- Executes on button press in btnRegister.
 function btnRegister_Callback(hObject, eventdata, handles)
@@ -1357,18 +1422,35 @@ I = data.cell1;
 %csvdata = handles.btnAnalysisFiles.UserData;
 hCSV = findobj('Tag','btnAnalysisFiles');
 csvdata = get(hCSV,'UserData');
-hScale = findobj('Tag','editScale');
-hSX = findobj('Tag','editShiftx');
-hSY = findobj('Tag','editShifty');
+
 if ( ~isempty(csvdata))
     csv1 = fullfile(csvdata.csvPath, csvdata.cell1file);
+    %Read values
+    hScale = findobj('Tag','editScale');
+    hSX = findobj('Tag','editShiftx');
+    hSY = findobj('Tag','editShifty');
+    if isempty(get(hScale,'String'))
+        %load config data if empty
+        configfile =fullfile(csvdata.csvPath, 'neurites_config.csv');
+        if (exist(configfile, 'file') == 2)
+            M = readtable(configfile);
+        else
+            M = estimateOverlay(handles,csvdata.cell1ID,csvdata.cell2ID,csv1);
+        end
+        %M = table(Cell1,Cell2, Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
+        loadConfig(M,handles);
+        hscale = M.Scale;
+        shiftx = M.Shiftx;
+        shifty = M.Shifty;
+       
+    else
+        hscale = str2double(get(hScale,'String'));
+        shiftx = str2double(get(hSX,'String'));
+        shifty = str2double(get(hSY,'String'));
+    end  
+    
     T1 = readtable(csv1);
-    hscale = str2double(get(hScale,'String'));
-    shiftx = str2double(get(hSX,'String'));
-    shifty = str2double(get(hSY,'String'));
     %plot
-   % X1 = (T1.StartX * hscale) + shiftx;
-  %  Y1 = (T1.StartY * hscale) + shifty;
     axes(handles.axes2);
     imshow(I);
     hold on;
@@ -1676,14 +1758,15 @@ function btnCompass_Callback(hObject, eventdata, handles)
      msgbox('No data found - please run Analysis first');
  else
      N = hNData.N;
-     theta1 = [];
-     theta2 = [];
-     rho1 = [];
-     rho2 = [];
+     l = length(N.Synapses);
+     theta1 = [l];
+     theta2 = [l];
+     rho1 = [l];
+     rho2 = [l];
      %display roi
      figure
      %hold on;
-     for i=1:length(N.Synapses)
+     for i=1:l
          syn = N.Synapses{i};
          theta1(end+1) = syn.ThetaC1;
          theta2(end+1) = syn.ThetaC2;
@@ -1712,3 +1795,28 @@ function btnCompass_Callback(hObject, eventdata, handles)
      
      %legend(get(hCell1, 'String'),get(hCell2, 'String'))
  end
+
+
+
+function editAnalysisfiles2_Callback(hObject, eventdata, handles)
+% hObject    handle to editAnalysisfiles2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editAnalysisfiles2 as text
+%        str2double(get(hObject,'String')) returns contents of editAnalysisfiles2 as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editAnalysisfiles2_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editAnalysisfiles2 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+

@@ -64,8 +64,9 @@
 %       7. Compass: Plots angles for each cell (direct line from synapse to
 %       soma centroid)
 %
-% NB. Output files will be overwritten on each run - to save just copy file
-% directly
+% NB. Output files will be overwritten on each run - so copy files to
+% another name if required
+%
 % 
 % Developed by Liz Cooper-Williams, QBI (e.cooperwilliams@uq.edu.au)
 % Version: 2.0 (14 Oct 2015)

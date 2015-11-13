@@ -358,6 +358,16 @@ classdef NeuritesAnalyser
     Total = length(obj.Synapses)
 
     end
+    
+    function obj = updateSomaCalculations(obj)
+        for i=1:length(obj.Synapses)
+            syn = obj.Synapses{i};
+            [syn.ThetaC1,syn.RhoC1,syn.DegC1] = findAngleSoma(syn.MedianC1(1),syn.MedianC1(2),obj.soma1,syn.scale);
+            [syn.ThetaC2,syn.RhoC2,syn.DegC2] = findAngleSoma(syn.MedianC2(1),syn.MedianC2(2),obj.soma2,syn.scale);
+            obj.Synapses{i} = syn;
+        end
+    end
+    
     function [colnames,tabledata] = generateTable(obj,types, cell1label, cell2label)
          colnames = {'Type' 'Cell1_X' 'Cell1_Y' 'Cell2_X' 'Cell2_Y',...
              'Cell1_order' 'Cell1_length' 'Cell1_distance' 'Cell1_soma' 'Cell1_end'  ...
