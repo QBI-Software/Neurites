@@ -353,13 +353,12 @@ classdef NeuritesAnalyser
                     saved{ctr} = syn;
                     ctr = ctr + 1;
                 end
-                
             end
         end
         toc  
-    %length(obj.Synapses)
-    obj.Synapses = saved;
-    Total = length(obj.Synapses)
+        %length(obj.Synapses)
+        obj.Synapses = saved;
+        Total = length(obj.Synapses)
 
     end
     
@@ -371,7 +370,7 @@ classdef NeuritesAnalyser
             obj.Synapses{i} = syn;
         end
     end
-    
+    %% Generate Table data - export data to a table format
     function [colnames,tabledata] = generateTable(obj,types, cell1label, cell2label)
          colnames = {'Cell1_X' 'Cell1_Y' 'Cell2_X' 'Cell2_Y',...
              'Cell1_tree' 'Cell1_order' 'Cell1_length' 'Cell1_distance' 'Cell1_soma' 'Cell1_end'  ...
@@ -410,13 +409,12 @@ classdef NeuritesAnalyser
                         syn.StartXY1 syn.StartXY2];
                     %tabledata = cat(1,tabledata,row1);
                     tabledata(i,:) = row1;
-                else
-                    %tabledata(i,:) = []; changes array size error
                 end
             end
         end
-        %tabledata(~tabledata(1,:)==0); TODO remove zero rows
+        tabledata( ~any(tabledata,2), : ) = [];  %remove zero rows
     end
+    
     %Check if already loaded - num: is iteration of updated Syn objects
     function isduplicate = duplicateSynapse(obj,syn, num,tol)
         isduplicate = 0;
