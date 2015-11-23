@@ -12,6 +12,8 @@ classdef NeuritesAnalyser
       CSV2
       soma1
       soma2
+      filter1
+      filter2
    end
    methods
       function obj = NeuritesAnalyser(rgbimg,roi,R,G)
@@ -313,6 +315,7 @@ classdef NeuritesAnalyser
                     syn.StartXY1 = [T1.StartX(fR), T1.StartY(fR)];
                     syn.NeuriteLengthC1 = T1.Length__m_(fR);
                     syn.DistanceC1= findDistanceToSoma(xC,yC,syn.StartXY1,T1.LengthToBeginning__m_(fR));
+                    syn.TreeC1 = T1.Tree(fR);
                     syn.BranchPointC1 = T1.Order(fR);
                     syn.BranchTypeC1 = T1.PointType(fR);
                     [syn.NeuriteEndC1,syn.EndpointsC1] = findLength2NeuriteEnd(syn,xC,yC,T1,fR);
@@ -334,6 +337,7 @@ classdef NeuritesAnalyser
                     syn.StartXY2 = [T2.StartX(fR), T2.StartY(fR)];
                     syn.NeuriteLengthC2 = T2.Length__m_(fR);
                     syn.DistanceC2= findDistanceToSoma(xC,yC,syn.StartXY2,T2.LengthToBeginning__m_(fR));
+                    syn.TreeC2 = T2.Tree(fR);
                     syn.BranchPointC2 = T2.Order(fR);
                     syn.BranchTypeC2 = T2.PointType(fR);
                     [syn.NeuriteEndC2,syn.EndpointsC2] = findLength2NeuriteEnd(syn,xC,yC,T2,fR);
@@ -369,10 +373,10 @@ classdef NeuritesAnalyser
     end
     
     function [colnames,tabledata] = generateTable(obj,types, cell1label, cell2label)
-         colnames = {'Type' 'Cell1_X' 'Cell1_Y' 'Cell2_X' 'Cell2_Y',...
-             'Cell1_order' 'Cell1_length' 'Cell1_distance' 'Cell1_soma' 'Cell1_end'  ...
+         colnames = {'Cell1_X' 'Cell1_Y' 'Cell2_X' 'Cell2_Y',...
+             'Cell1_tree' 'Cell1_order' 'Cell1_length' 'Cell1_distance' 'Cell1_soma' 'Cell1_end'  ...
              'Cell1_theta' 'Cell1_rho' 'Cell1_deg' ...
-             'Cell2_order' 'Cell2_length' 'Cell2_distance' 'Cell2_soma' 'Cell2_end'  ...
+             'Cell2_tree' 'Cell2_order' 'Cell2_length' 'Cell2_distance' 'Cell2_soma' 'Cell2_end'  ...
              'Cell2_theta' 'Cell2_rho' 'Cell2_deg' ...
              'Cell1_StartX' 'Cell1_StartY' 'Cell2_StartX' 'Cell2_StartY' };
          colnames = strrep(colnames, 'Cell1', cell1label);
@@ -381,25 +385,37 @@ classdef NeuritesAnalyser
 %             'DS_length' 'DS_distance' 'DS_order' 'DS_end' 'DS_soma'  ...
 %             'SBAC_length' 'SBAC_distance' 'SBAC_order' 'SBAC_end' 'SBAC_soma' ...
 %             'DS_StartX' 'DS_StartY' 'SBAC_StartX' 'SBAC_StartY' };
-        tabledata =zeros(length(obj.Synapses),25); %preallocate
+        tabledata =zeros(length(obj.Synapses),length(colnames)); %preallocate
+        ignorefilter=0;
+        %Override filters if empty
+        if (isempty(obj.filter1) && isempty(obj.filter2))
+            ignorefilter=1;
+        end
         for i=1:length(obj.Synapses)
             syn = obj.Synapses{i};
-            if (~isempty(syn) && ismember(syn.SynapseType,types))
-                
-                %show data in table
-                row1 = [syn.SynapseType ...
-                    syn.MedianC1 syn.MedianC2 ...
-                    syn.BranchPointC1 syn.NeuriteLengthC1 syn.DistanceC1 ...
-                    syn.SomaC1 syn.NeuriteEndC1 ...
-                    syn.ThetaC1 syn.RhoC1 syn.DegC1 ...
-                    syn.BranchPointC2 syn.NeuriteLengthC2 syn.DistanceC2 ...
-                    syn.SomaC2 syn.NeuriteEndC2 ...
-                    syn.ThetaC2 syn.RhoC2 syn.DegC2 ...
-                    syn.StartXY1 syn.StartXY2];
-                %tabledata = cat(1,tabledata,row1);
-                tabledata(i,:) = row1;
+            if (~isempty(syn))
+                %Apply filters
+                tb1 = strcat(num2str(syn.TreeC1),'-',num2str(syn.BranchPointC1));
+                tb2 = strcat(num2str(syn.TreeC2),'-',num2str(syn.BranchPointC2));
+                if (ignorefilter || (~isempty(obj.filter1) && ismember(tb1,obj.filter1)) ...
+                        || (~isempty(obj.filter2) && ismember(tb2,obj.filter2)))
+                    %show data in table
+                    row1 = [syn.MedianC1 syn.MedianC2 ...
+                        syn.TreeC1 syn.BranchPointC1 syn.NeuriteLengthC1 syn.DistanceC1 ...
+                        syn.SomaC1 syn.NeuriteEndC1 ...
+                        syn.ThetaC1 syn.RhoC1 syn.DegC1 ...
+                        syn.TreeC2 syn.BranchPointC2 syn.NeuriteLengthC2 syn.DistanceC2 ...
+                        syn.SomaC2 syn.NeuriteEndC2 ...
+                        syn.ThetaC2 syn.RhoC2 syn.DegC2 ...
+                        syn.StartXY1 syn.StartXY2];
+                    %tabledata = cat(1,tabledata,row1);
+                    tabledata(i,:) = row1;
+                else
+                    %tabledata(i,:) = []; changes array size error
+                end
             end
         end
+        %tabledata(~tabledata(1,:)==0); TODO remove zero rows
     end
     %Check if already loaded - num: is iteration of updated Syn objects
     function isduplicate = duplicateSynapse(obj,syn, num,tol)
@@ -414,6 +430,36 @@ classdef NeuritesAnalyser
         
     end
     
+    %Get list of branches for displaying
+    function branchlist = getbranchoptions(obj,cellnum)
+        branchlist = {};
+        
+        for i=1:length(obj.Synapses)
+            syn = obj.Synapses{i};
+            if (~isempty(syn))
+                if (cellnum == 1)
+                    a = strcat(num2str(syn.TreeC1),'-',num2str(syn.BranchPointC1));
+                else % assumes cell2
+                    a = strcat(num2str(syn.TreeC2),'-',num2str(syn.BranchPointC2));
+                    
+                end
+                branchlist = cat(2, branchlist,a);
+            end
+        end
+        branchlist = unique(branchlist);
+        branchlist = sort(branchlist);
+    
+    end   
+    
+    %Apply filter on tree-branch
+    function obj = setfilter(obj,cellnum,blist)
+        if (cellnum ==1)
+            obj.filter1 = blist;
+        else
+            obj.filter2 = blist;
+        end
+    end
+   
    end
 end
 

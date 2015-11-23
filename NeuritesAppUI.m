@@ -883,7 +883,10 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
     str3 = sprintf('%s soma',cell2label);
     str4 = sprintf('%s end',cell2label);
     options = {'Select type',str1,str2,str3,str4};
+    c1 = sprintf('%s',cell1label);
+    c2 = sprintf('%s',cell2label);
     colouroptions = {'Blue (default)','Red','Yellow','Cyan','Magenta','Black'};
+    
     hp = uipanel('Parent',f,'Title','Review controls','FontSize',12,...
              'Tag','panelReview','BackgroundColor','white',...
              'Units','pixels','Position',[5 5 600 100]);
@@ -894,6 +897,7 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
        'TooltipString','Select type',...
        'Units','pixels','Position',[5 5 100 40],...
        'Callback',{@setreviewtype,syn,N1});
+
    tth1 = uicontrol(hp,'Style','pushbutton','String','Previous',...
        'Units','pixels','Position',[120 50 100 25],...
        'Visible','off','Callback',{@showtrack,-1});
@@ -905,19 +909,29 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
        'Tag','btnReviewDelete',...
        'Visible','off','Callback',{@deleteSynapse});
    tth4 = uicontrol(hp,'Style','pushbutton','String','Remove Branch',...
-       'Units','pixels','Position',[220 5 100 25],...
+       'Units','pixels','Position',[230 5 100 25],...
        'Visible','off','Callback',{@removeRegion});
      
-   tth5 = uicontrol(hp,'Style','pushbutton','String','Accept Changes',...
-       'Units','pixels','Position',[330 5 100 25],...
+   tth5 = uicontrol(hp,'Style','pushbutton','String','SAVE',...
+       'Units','pixels','Position',[330 5 80 25], ...
        'Visible','off','Callback',{@acceptChanges,handles,cell1label, cell2label} );
    
    tth6 = uicontrol(hp,'Style','pushbutton','String','Clear',...
        'Units','pixels','Position',[320 50 60 25],...
        'Visible','off','Callback',@clearplots );
    tth7 = uicontrol(hp,'Style','pushbutton','String','Show All',...
-       'Units','pixels','Position',[450 5 120 25],...
+       'Units','pixels','Position',[500 50 80 25],...
        'Visible','off','Callback',{@showAll} );
+      %Select branch for display
+   
+   th0 = uicontrol(hp, 'Style','pushbutton','String',strcat('Filter ',c1),...
+       'Tag','btnFilter',...
+       'Units','pixels','Position',[420 5 80 25],...
+       'Visible','off','Callback',{@filterTree,1,c1} );
+   th1 = uicontrol(hp, 'Style','pushbutton','String',strcat('Filter ',c2),...
+       'Tag','btnFilter',...
+       'Units','pixels','Position',[500 5 80 25],...
+       'Visible','off','Callback',{@filterTree,2,c2} );
    %Change Soma centroids
     tth8 = uicontrol(hp, 'Style','pushbutton','String','Soma Centroids',...
        'Tag','btnSomaCentroids',...
@@ -928,6 +942,7 @@ if (~isempty(hNData) && hNData.numsynapses > 0)
        'TooltipString','Select colour',...
        'Units','pixels','Position',[5 -20 100 40],...
        'Callback',{@setcolour});
+   
   else
       msgbox('Cannot find synapse data! Run Analysis first.','Error');
 end
@@ -1087,6 +1102,50 @@ function changeSoma(source,callbackdata)
     hNData.N = N1;
     set(hId,'UserData',hNData);
     
+
+
+function filterTree(source,callbackdata,cellnum, celllabel)
+    hNId = findobj('Tag','btnIdentify');
+    hNData = get(hNId,'UserData');
+    N1 = hNData.N;
+    branchoptions = { N1.getbranchoptions(1) N1.getbranchoptions(2)};   
+    prompt = sprintf('Select %s tree-branch:',celllabel);
+    [s,v] = listdlg('PromptString',prompt,...
+                'SelectionMode','multiple',...
+                'CancelString', 'None',...
+                'ListString',branchoptions{cellnum})
+    %save filters
+    if (v) 
+        b = branchoptions{cellnum}(s);
+        N1 = N1.setfilter(cellnum,b);
+    
+        %show selected tree-branches
+        hId = findobj('Tag','btnReview');
+        hData = get(hId,'UserData');
+        colour = hData.colour;
+        clearplots();
+        for i=1:length(N1.Synapses)
+            syn = N1.Synapses{i};
+            if cellnum == 1
+                tb = strcat(num2str(syn.TreeC1),'-',num2str(syn.BranchPointC1));
+                c = 1
+            else
+                tb = strcat(num2str(syn.TreeC2),'-',num2str(syn.BranchPointC2));
+                c = 3;
+            end
+            if (ismember(tb,b))
+                [s,p] = plottrace(c,syn,'-',colour);
+            end
+        end
+    else
+        %clear filters
+        b = {}
+        N1 = N1.setfilter(cellnum,b);
+    end
+    %save
+    hNData.N = N1;
+    set(hNId,'UserData',hNData);
+    
 function showAll(source,callbackdata)
     hId = findobj('Tag','btnReview');
     hData = get(hId,'UserData');
@@ -1100,7 +1159,7 @@ function showAll(source,callbackdata)
             'marker','o','linestyle','none','LineWidth', 2);
     plot(N1.soma2.centroid(:,1), N1.soma2.centroid(:,2),'color','b',...
             'marker','o','linestyle','none','LineWidth', 2);
-    for (i=1:length(N1.Synapses))
+    for i=1:length(N1.Synapses)
         syn = N1.Synapses{i};
         [s,p] = plottrace(c,syn,'-',colour);
          if (ismember(i,hData.deleted))
@@ -1204,7 +1263,7 @@ function a = accept(synnum)
     end
 
 function acceptChanges(source,callbackdata,handles,cell1label, cell2label)
-    prompt = 'Accept changes and update results?';
+    prompt = 'Accept changes and update results (with filters)?';
     str = questdlg(prompt,'Update results',...
         'Yes','No','Yes');
     hId = findobj('Tag','btnReview');
@@ -1228,6 +1287,9 @@ function acceptChanges(source,callbackdata,handles,cell1label, cell2label)
              csvdata = get(hCSV,'UserData');
              pathname = csvdata.csvPath;
              outputfile = fullfile(pathname, 'neurites_data_review.csv');
+             [FileName,PathName] = uiputfile({'*.csv','CSV file'},...
+                 'Save Data', outputfile)
+             outputfile = fullfile(PathName,FileName);
              saveDataFile(outputfile, colnames, T);
              %Recopy synapses to new list
              if (length(hData.deleted))

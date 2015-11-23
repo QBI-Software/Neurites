@@ -15,13 +15,15 @@ classdef NeuritesSynapse
       scale
       StartXY1 % Start coords from csv for cell1
       StartXY2 % Start coords from csv for cell2
-      %neuron measurements
+      %neuron measurements from csv
       NeuriteLengthC1
       NeuriteLengthC2
       NeuriteEndC1
       NeuriteEndC2
       DistanceC1
       DistanceC2
+      TreeC1
+      TreeC2
       BranchPointC1
       BranchPointC2
       BranchTypeC1
@@ -32,15 +34,17 @@ classdef NeuritesSynapse
       SomaC2
       SomapointsC1
       SomapointsC2
+      %rowset
       fR1
       fR2
-      %calculations
+      %polar coords
       ThetaC1
       ThetaC2
       DegC1
+      DegC2
       RhoC1
       RhoC2
-      DegC2
+      
       
    end
    methods
