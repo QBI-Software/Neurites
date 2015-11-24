@@ -24,7 +24,7 @@ function varargout = NeuritesAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 12-Nov-2015 17:43:58
+% Last Modified by GUIDE v2.5 24-Nov-2015 11:05:58
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -1855,7 +1855,7 @@ function btnCompass_Callback(hObject, eventdata, handles)
      hold on
      compass(x2,-y2,color2);
      
-     %legend(get(hCell1, 'String'),get(hCell2, 'String'))
+    % legend([get(hCell1, 'String'),get(hCell2, 'String')]);
  end
 
 
@@ -1882,3 +1882,42 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
+
+
+% --- Executes on button press in btnRose.
+function btnRose_Callback(hObject, eventdata, handles)
+% hObject    handle to btnRose (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+ hId = findobj('Tag','btnIdentify');
+ hNData = get(hId,'UserData');
+ if (isempty(hNData))
+     msgbox('No data found - please run Analysis first');
+ else
+     N = hNData.N;
+     l = length(N.Synapses);
+     theta1 = [l];
+     theta2 = [l];
+     rho1 = [l];
+     rho2 = [l];
+     %display roi
+     figure
+     %hold on;
+     for i=1:l
+         syn = N.Synapses{i};
+         theta1(end+1) = syn.ThetaC1;
+         theta2(end+1) = syn.ThetaC2;
+         rho1(end+1) = syn.RhoC1;
+         rho2(end+1) = syn.RhoC2;
+         
+     end
+     
+     hCell1 = findobj('Tag','editCell1');
+     hCell2 = findobj('Tag','editCell2');
+          
+     %show plots
+     rose(theta1);
+     hold on
+     rose(theta2);
+     legend([get(hCell1, 'String'),get(hCell2, 'String')])
+ end
