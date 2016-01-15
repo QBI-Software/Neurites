@@ -24,7 +24,7 @@ function varargout = NeuritesAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 24-Nov-2015 11:05:58
+% Last Modified by GUIDE v2.5 15-Jan-2016 11:28:22
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -720,6 +720,8 @@ h2 = findobj('Tag', 'editTolerance');
 tolerance = str2double(get(h2,'String'));
 h3 = findobj('Tag', 'checkboxShowplots');
 showplots = get(h3,'Value');
+h4 = findobj('Tag', 'chkCentre');
+centred = get(h4,'Value');
 types =[1];
 
 hSX = findobj('Tag','editShiftx');
@@ -775,7 +777,13 @@ set(htable,'data',T,'ColumnName',colnames);
 %save to file
 outputfile = fullfile(pathname, 'neurites_data.csv');
 saveDataFile(outputfile, colnames, T);
-
+%Save coords centred to DS centroid at [0,0]
+if (centred)
+    [colnames,T1] = N.generateCentredDataTable(types,cell1label, cell2label);
+    %save to file
+    outputfile = fullfile(pathname, 'neurites_data_centred.csv');
+    saveDataFile(outputfile, colnames, T1);
+end
 %save analysis
 dataN = struct('N', N, 'numsynapses',length(N.Synapses));
 %hObject.UserData = dataN;
@@ -1837,8 +1845,8 @@ function btnCompass_Callback(hObject, eventdata, handles)
          
      end
      
-     [x1,y1] = pol2cart(theta1,rho1);
-     [x2,y2] = pol2cart(theta2,rho2);
+     [x1,y1] = pol2cart(2 * pi - theta1,rho1);
+     [x2,y2] = pol2cart(2 * pi - theta2,rho2);
      
      hCell1 = findobj('Tag','editCell1');
      hCell2 = findobj('Tag','editCell2');
@@ -1854,8 +1862,8 @@ function btnCompass_Callback(hObject, eventdata, handles)
      compass(x1,-y1,color1);
      hold on
      compass(x2,-y2,color2);
-     
-    % legend([get(hCell1, 'String'),get(hCell2, 'String')]);
+     set(gca,'View',[-90 90],'YDir','reverse');
+     legend([get(hCell1, 'String'),get(hCell2, 'String')]);
  end
 
 
@@ -1916,8 +1924,19 @@ function btnRose_Callback(hObject, eventdata, handles)
      hCell2 = findobj('Tag','editCell2');
           
      %show plots
+     
      rose(theta1);
      hold on
      rose(theta2);
+     set(gca,'View',[-90 90],'YDir','reverse');
      legend([get(hCell1, 'String'),get(hCell2, 'String')])
  end
+
+
+% --- Executes on button press in chkCentre.
+function chkCentre_Callback(hObject, eventdata, handles)
+% hObject    handle to chkCentre (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of chkCentre

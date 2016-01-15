@@ -14,6 +14,8 @@ classdef NeuritesAnalyser
       soma2
       filter1
       filter2
+      centreshiftx
+      centreshifty
    end
    methods
       function obj = NeuritesAnalyser(rgbimg,roi,R,G)
@@ -22,6 +24,7 @@ classdef NeuritesAnalyser
          else
           obj.I = rgbimg;
          end
+         
          if (ischar(roi))
           obj.Iroi = imread(roi);
          else
@@ -42,10 +45,10 @@ classdef NeuritesAnalyser
          else
             obj.gbw = G;
          end
-         
+         %Find cell somas
          obj.soma1 = obj.findSoma(obj.rbw);
          obj.soma2 = obj.findSoma(obj.gbw);
-
+         
          obj.maskedR = obj.rbw; % Simply a copy at first.
          %attempt to reduce to skeleton
          %obj.maskedR = bwmorph(obj.rbw,'skel', Inf);
@@ -416,6 +419,52 @@ classdef NeuritesAnalyser
         end
         tabledata( ~any(tabledata,2), : ) = [];  %remove zero rows
     end
+    %Output data adjusted for Cell1 centroid at [0,0]
+    function [colnames,tabledata] = generateCentredDataTable(obj,types,cell1label, cell2label)
+        colnames = {'Cell1_centroidX' 'Cell1_centroidY' 'Cell1_synapseX' 'Cell1_synapseY' ...
+              'Cell1_theta' 'Cell1_rho' 'Cell1_deg' ...
+              'Cell2_centroidX' 'Cell2_centroidY' 'Cell2_synapseX' 'Cell2_synapseY'...
+              'Cell2_theta' 'Cell2_rho' 'Cell2_deg' ...
+              'Shiftx' 'Shifty'};
+         colnames = strrep(colnames, 'Cell1', cell1label);
+         colnames = strrep(colnames, 'Cell2', cell2label);
+
+        tabledata =zeros(length(obj.Synapses),length(colnames)); %preallocate
+        ignorefilter=0;
+        %Override filters if empty
+        if (isempty(obj.filter1) && isempty(obj.filter2))
+            ignorefilter=1;
+        end
+        for i=1:length(obj.Synapses)
+            syn = obj.Synapses{i};
+            if (~isempty(syn))
+                %Apply filters
+                tb1 = strcat(num2str(syn.TreeC1),'-',num2str(syn.BranchPointC1));
+                tb2 = strcat(num2str(syn.TreeC2),'-',num2str(syn.BranchPointC2));
+                if (ignorefilter || (~isempty(obj.filter1) && ismember(tb1,obj.filter1)) ...
+                        || (~isempty(obj.filter2) && ismember(tb2,obj.filter2)))
+                    %get cell1 soma centroid for centring
+                    [s1centroidx,s1centroidy] = syn.img2Coords(obj.soma1.centroid(1),obj.soma1.centroid(2));
+                    [s2centroidx,s2centroidy] = syn.img2Coords(obj.soma2.centroid(1),obj.soma2.centroid(2));
+                    centx = 0 - s1centroidx;
+                    centy = 0 - s1centroidy;
+                    s2centroidx = s2centroidx - centx;
+                    s2centroidy = s2centroidy - centy;
+                    %show data in table
+                    [syn1coordsx, syn1coordsy]  = syn.img2Coords(syn.MedianC1(1),syn.MedianC1(2));
+                    [syn2coordsx, syn2coordsy] = syn.img2Coords(syn.MedianC2(1),syn.MedianC2(2));
+                    row1 = [0 0 (syn1coordsx - centx) (syn1coordsy - centy) ...
+                        syn.ThetaC1 syn.RhoC1 syn.DegC1 ...
+                        s2centroidx s2centroidy (syn2coordsx - centx) (syn2coordsy - centy) ...
+                        syn.ThetaC2 syn.RhoC2 syn.DegC2 ...
+                        centx centy];
+                    %tabledata = cat(1,tabledata,row1);
+                    tabledata(i,:) = row1;
+                end
+            end
+        end
+        tabledata( ~any(tabledata,2), : ) = [];  %remove zero rows
+    end
     
     %Check if already loaded - num: is iteration of updated Syn objects
     function isduplicate = duplicateSynapse(obj,syn, num,tol)
@@ -496,7 +545,7 @@ function c = findLength(region, resolution)
         c = pdist(V,'euclidean') * resolution;
     end
 end
-
+%relative to somacentroid 
 function [theta,rho,deg] = findAngleSoma(x,y,soma,scale)
         dx = x-soma.centroid(:,1); %x1-x0
         dy = y-soma.centroid(:,2); %y1-y0
@@ -504,7 +553,7 @@ function [theta,rho,deg] = findAngleSoma(x,y,soma,scale)
         rho = sqrt(dx.^2 + dy.^2)/scale;
         deg = radtodeg(theta); 
         if (deg < 0)
-          %  deg = deg + 360; %negatives
+            deg = deg + 360; %negatives
         end
 end
 

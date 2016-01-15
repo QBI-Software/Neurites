@@ -1,11 +1,12 @@
 %%Test NeuritesAnalyser and NeuritesSynapse
-imgname='Test 2.jpg';%'100715 annotated.tif';%example.tif'
-imgroi ='tmp_roi.tif';
+imgname='Neurons.tif';%'100715 annotated.tif';%example.tif'
+imgroi ='neurites_roi.tif';
 I = imread(imgname);
 % thresholds – 1x3 matrix with the threshold values
 IG = rgb2gray(I);
 % for the R, G and B color channels - from histogram
 [cell1,cell2] = SplitCells(I,256);
+centred = 1;
 N = NeuritesAnalyser(imgname,imgroi,cell1,cell2);
 minlength = 10;
 tolerance = 2;
@@ -24,5 +25,14 @@ end
 sprintf('Found %d synapses', ctr);
 cell1file='DSdata.csv';
 cell2file='SBACdata.csv';
-N = N.measureSynapses(showtypes,cell1file,cell2file);
-T = N.generateTable(showtypes)
+scale=2.84;
+shiftx=0;
+shifty=-935;
+fit=10;
+cell1label='DS';
+cell2label='SBAC';
+N = N.measureSynapses(showtypes,cell1file,cell2file,scale,shiftx,shifty,fit);
+[colnames,T1] = N.generateCentredDataTable(showtypes,cell1label, cell2label);
+%save to file
+outputfile = fullfile(pathname, 'neurites_data_centred.csv');
+saveDataFile(outputfile, colnames, T1);
