@@ -24,7 +24,7 @@ function varargout = NeuritesAnnulusAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAnnulusAppUI
 
-% Last Modified by GUIDE v2.5 09-Jun-2016 14:04:49
+% Last Modified by GUIDE v2.5 09-Jun-2016 18:34:41
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -743,11 +743,51 @@ function updateStatus(handles,string)
     else
         set(handles.textOutput, 'string', string, 'Foreground', [0 0 0])
     end
+    
+function [colnames,T] = analyseAnnulus(handles)
+    % Whole annulus, then partition via set arc length at different angles
+    % Get masked image
+    h = findobj('Tag','menu_File_loadimage');
+    %data = h.UserData;
+    data = get(h,'UserData');
+    N = data.analyser;
+    if exists(N.maskedI)
+        imshow(N.maskedI);
+        %get annulus mask
+        inputPath = fullfilepath(data.imagePath,'neurites_annulus.tif');
+        mask = imread(inputPath);
+%         [x,y] = size(I);
+%         [r,c] = find(I > 0);
+%         p = [r(1),c(1)]; %starting point
+%         contour = bwtraceboundary(I,p,'E',8,Inf,'counterclockwise');
+%         xi = contour(:,2);
+%         yi = contour(:,1);
+%         %save points
+%         dataroi = struct('roi', I, 'xi',xi,'yi',yi,'x',x,'y',y);
+         mask_area = bwarea(mask)
+         annulus_area= bwarea(N.maskedI) %Total On pixels
+         neurites_area = mask_area - annulus_area %neurites only
+         colnames = {'Mask' 'Annulus' 'Neurites'};
+         T = table(mask_area, annulus_area,neurites_area);
+        % [colnames,T] = N.generateTable(types,cell1label, cell2label);
+    else
+        status = sprintf('Create Annulus mask first');
+        updateStatus(handles,status);
+    end
 
+function btnAnalysis_Callback(hObject, eventdata, handles)
+    [colnames,T] = analyseAnnulus(handles);
+    htable = findobj('Tag','uitableResults');
+    %Save data
+    set(htable,'data',T,'ColumnName',colnames);
+    %save to file
+    outputfile = fullfile(pathname, 'neurites_data.csv');
+    saveDataFile(outputfile, colnames, T);
+    
 
-% --- Executes on button press in btnIdentify.
+% --- Executes on button press in btnAnalysis.
 function btnIdentify_Callback(hObject, eventdata, handles)
-% hObject    handle to btnIdentify (see GCBO)
+% hObject    handle to btnAnalysis (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 clearplots();
