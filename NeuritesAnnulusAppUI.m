@@ -24,7 +24,7 @@ function varargout = NeuritesAnnulusAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAnnulusAppUI
 
-% Last Modified by GUIDE v2.5 02-Jun-2016 15:43:18
+% Last Modified by GUIDE v2.5 09-Jun-2016 14:04:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -79,8 +79,8 @@ if strcmp(get(hObject,'Visible'),'off')
     %Get the scroll panel API to programmatically control the view.
     api = iptgetapi(hSP);
     %Get the current magnification and position.
-    mag = api.getMagnification();
-    r = api.getVisibleImageRect();
+    %mag = api.getMagnification();
+    %r = api.getVisibleImageRect();
     %View the top left corner of the image.
     %api.setVisibleLocation(0.5,0.5)
     %Change the magnification to the value that just fits.
@@ -147,7 +147,6 @@ end
 
 delete(handles.figure1)
 
-
 % --- Executes on selection change in popupmenu1.
 function popupmenu1_Callback(hObject, eventdata, handles)
 % hObject    handle to popupmenu1 (see GCBO)
@@ -172,29 +171,6 @@ end
 
 %set(hObject, 'String', {'plot(rand(5))', 'plot(sin(1:0.01:25))', 'bar(1:.5:10)', 'plot(membrane)', 'surf(peaks)'});
 
-
-
-function txtInputfilename_Callback(hObject, eventdata, handles)
-% hObject    handle to txtInputfilename (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of txtInputfilename as text
-%        str2double(get(hObject,'String')) returns contents of txtInputfilename as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function txtInputfilename_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to txtInputfilename (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
 % --------------------------------------------------------------------
 function menu_File_loadimage_Callback(hObject, eventdata, handles)
 % hObject    handle to menu_File_loadimage (see GCBO)
@@ -210,31 +186,26 @@ function menu_File_loadimage_Callback(hObject, eventdata, handles)
     inputPath = fullfile(imagePath,imageFile);
     updateStatus(handles,'Loading image ....');
     I = imread(inputPath);
-    %Save image analyser
-    N = NeuritesAnnulusAnalyser(I);
-    %ig = rgb2gray(I);
     %load image in panel
     axes(handles.axes1);
-    %hFig = figure(get(handles.axes1,'parent'));%handles.axes1.Parent;
     hSP = get(handles.axes1,'parent');
-    %hSP = handles.axes1.Parent; %scrollpanel
-    %hFig = hSP.Parent; %figure
     api = iptgetapi(hSP);
-    api.replaceImage(I)
-    
-    %save image data
-    data = struct('img',I, 'imagePath',imagePath,'inputfile', inputPath, 'analyser', N);
-    set(hObject,'UserData',data); 
-    %hObject.UserData = data;
-    %clear any previous data
+    api.replaceImage(I);
+    % Reset magnification
+    mag = api.findFitMag()
+    api.setMagnification(mag);
     htable = findobj('Tag','uitableResults');
     set(htable,'Data',[]);
-    %or set(htable,'Visible','off')
     %Clear configuration
     clearConfig(handles,0);
     clearCSVdata(handles);
     %Directions
     updateStatus(handles,'Image loaded.');
+    %Save image analyser
+    N = NeuritesAnnulusAnalyser(I); 
+    %save image data
+    data = struct('img',I, 'imagePath',imagePath,'inputfile', inputPath, 'analyser', N);
+    set(hObject,'UserData',data); 
 
 % --------------------------------------------------------------------
 function Menu_File_loadcsv_Callback(hObject, eventdata, handles)
@@ -289,6 +260,7 @@ h = findobj('Tag','menu_File_loadimage');
 %data = h.UserData;
 data = get(h,'UserData');
 I = data.img;
+N = data.analyser;
 %csvdata = handles.btnAnalysisFiles.UserData;
 hCSV = findobj('Tag','Menu_File_loadcsv');
 csvdata = get(hCSV,'UserData');
@@ -299,16 +271,24 @@ if ( ~isempty(csvdata))
     hScale = findobj('Tag','editScale');
     hSX = findobj('Tag','editShiftx');
     hSY = findobj('Tag','editShifty');
+    
     if isempty(get(hScale,'String'))
         %load config data if empty
-        configfile =fullfile(csvdata.csvPath, 'neurites_config.csv');
+        configfile =fullfile(csvdata.csvPath, 'neurites_annulus_config.csv');
         if (exist(configfile, 'file') == 2)
             M = readtable(configfile);
+            N.soma.centroid = [M.CentroidX M.CentroidY]; %update centroid
+            data.analyser = N;
+            set(h,'UserData',data);
         else
             M = estimateOverlay(handles,I,csv1);
+            if (exists(data.analyser))
+                M.CentroidX = N.soma.centroid(1);
+                M.CentroidY = N.soma.centroid(2);
+            end
         end
-        %M = table(Cell1,Cell2, Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
         loadConfig(M,handles);
+        
         hscale = M.Scale;
         shiftx = M.Shiftx;
         shifty = M.Shifty;
@@ -317,6 +297,7 @@ if ( ~isempty(csvdata))
         hscale = str2double(get(hScale,'String'));
         shiftx = str2double(get(hSX,'String'));
         shifty = str2double(get(hSY,'String'));
+        
     end  
     
     T1 = readtable(csv1);
@@ -420,10 +401,9 @@ function M = estimateOverlay(handles, I,cell1csv)
     
     Shiftx = round(S3(1) - S(1),2);
     Shifty = round(-S3(2) - S(2),2);
-    Minlength = 10;
-    Tolerance = 1;
     
-    M = table(Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
+    
+    M = table(Scale, Fit, Shiftx, Shifty);
     
         
         
@@ -432,14 +412,18 @@ function loadConfig(M, handles)
     hSX = findobj('Tag','editShiftx');
     hSY = findobj('Tag','editShifty');
     hFit = findobj('Tag','editFit');
-    hMin = findobj('Tag','editMinlength');
-    hTol = findobj('Tag','editTolerance');
+    hCx = findobj('Tag','editCentroidX');
+    hCy = findobj('Tag','editCentroidY');
+    hOD = findobj('Tag','editOD');
+    hID = findobj('Tag','editID');
     set(hScale,'String',num2str(M.Scale));
     set(hFit,'String',num2str(M.Fit));
     set(hSX,'String',num2str(M.Shiftx));
     set(hSY,'String',num2str(M.Shifty));
-    set(hMin,'String',num2str(M.Minlength));
-    set(hTol,'String',num2str(M.Tolerance));
+    set(hCx,'String',num2str(M.CentroidX));
+    set(hCy,'String',num2str(M.CentroidY));
+    set(hOD,'String',num2str(M.AnnulusOD));
+    set(hID,'String',num2str(M.AnnulusID));
     
 
 function clearConfig(handles,clearlabels)
@@ -448,15 +432,19 @@ function clearConfig(handles,clearlabels)
     hSX = findobj('Tag','editShiftx');
     hSY = findobj('Tag','editShifty');
     hFit = findobj('Tag','editFit');
-    hMin = findobj('Tag','editMinlength');
-    hTol = findobj('Tag','editTolerance');
+    hCx = findobj('Tag','editCentroidX');
+    hCy = findobj('Tag','editCentroidY');
+    hOD = findobj('Tag','editOD');
+    hID = findobj('Tag','editID');
     
     set(hScale,'String',initval);
     set(hFit,'String',initval);
     set(hSX,'String',initval);
     set(hSY,'String',initval);
-    set(hMin,'String',initval);
-    set(hTol,'String',initval);
+    set(hCx,'String',initval);
+    set(hCy,'String',initval);
+    set(hOD,'String',initval);
+    set(hID,'String',initval);
 
 function clearCSVdata(handles)
     hCf0 = findobj('Tag', 'Menu_File_loadcsv');
@@ -473,21 +461,25 @@ function saveConfig_Callback(hObject, eventdata, handles)
     hSX = findobj('Tag','editShiftx');
     hSY = findobj('Tag','editShifty');
     hFit = findobj('Tag','editFit');
-    hMin = findobj('Tag','editMinlength');
-    hTol = findobj('Tag','editTolerance');
+    hCx = findobj('Tag','editCentroidX');
+    hCy = findobj('Tag','editCentroidY');
+    hOD = findobj('Tag','editOD');
+    hID = findobj('Tag','editID');
     Scale = str2double(get(hScale,'String'));
     Fit = str2double(get(hFit,'String'));
     Shiftx = str2double(get(hSX,'String'));
     Shifty = str2double(get(hSY,'String'));
-    Minlength = str2double(get(hMin,'String'));
-    Tolerance = str2double(get(hTol,'String'));
+    CentroidX = str2double(get(hCx,'String'));
+    CentroidY = str2double(get(hCy,'String'));
+    AnnulusOD = str2double(get(hOD,'String'));
+    AnnulusID = str2double(get(hID,'String'));
 
-    T = table(Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
+    T = table(Scale, Fit, Shiftx, Shifty, CentroidX, CentroidY, AnnulusOD, AnnulusID);
     %save to file
     %csvdata = handles.btnAnalysisFiles.UserData;
     hCSV = findobj('Tag','Menu_File_loadcsv');
     csvdata = get(hCSV,'UserData');
-    outputfile = 'neurites_config.csv';
+    outputfile = 'neurites_annulus_config.csv';
     if ( ~isempty(csvdata))
         outputfile =fullfile(csvdata.csvPath, outputfile);
     end
@@ -664,6 +656,38 @@ function radioDraw_Callback(hObject, eventdata, handles)
 
 % Hint: get(hObject,'Value') returns toggle state of radioDraw
 
+function outermask = applyAnnulus(handles, id, od, scale, centroid)
+        rid = (id * scale);
+        rod = (od * scale);
+        x = centroid(1) - (rod/2);  % min_x
+        y = centroid(2) - (rod/2);  % min_y
+        outer = [x y rod rod]; % [min_x min_y diam diam]
+        % Plot center
+        
+        hold on;
+        plot(centroid(1), centroid(2), 'r+', 'LineWidth', 2, 'MarkerSize', 5);
+        grid on;
+        hCircle1 = imellipse(gca, outer);
+        status = sprintf('Double-Click on OUTER annulus to accept position.');
+        updateStatus(handles,status);
+        disp(status)
+        position = wait(hCircle1); %confirm position
+        outermask = hCircle1.createMask;
+        %[xmin ymin width height] = position
+        %[3995.90774907749 4541.9667896679 3500 3500]
+        x = centroid(1) - (rid/2)
+        y = centroid(2) - (rid/2)
+        inner = [x y rid rid]
+        hCircle2 = imellipse(gca, inner);
+        status = sprintf('Double-Click on INNER annulus to accept position.');
+        updateStatus(handles,status);
+        disp(status)
+        position = wait(hCircle2); %confirm position
+        innermask = hCircle2.createMask;
+        % create annulus outer-inner
+        outermask(innermask) = 0;
+        
+       
 
 % --- Executes on button press in radioAuto.
 function radioAuto_Callback(hObject, eventdata, handles)
@@ -685,31 +709,17 @@ if (get(hObject,'Value') > 0)
     if (isnan(od) || isnan(id))
         msgbox('Error: Please enter OD and ID values first');
     else
-        N = data.analyser;
-        centroid =N.soma.centroid
-        I = N.bw; %get BW version of image
-        rid = (id * scale)/2
-        rod = (od * scale)/2
-        x = centroid(1) - rid
-        y = centroid(2) - rid
-        outer = [x y rod rod]
-        hCircle1 = imellipse(gca, outer);
-        position = wait(hCircle1); %confirm position
-        outermask = hCircle1.createMask;
-        %[xmin ymin width height] = position
-        %[3995.90774907749 4541.9667896679 3500 3500]
-        x = position(1)
-        y = position(2)
-        inner = [x y rid rid]
-        hCircle2 = imellipse(gca, inner);
         
-        position = wait(hCircle2); %confirm position
-        innermask = hCircle2.createMask;
-        % create annulus outer-inner
-        outermask(~innermask) = 0;
-        N.loadMask(outermask);
-        I = N.maskedI;
-        imshow(I);
+        N = data.analyser;
+        centroid =N.soma.centroid;
+        mask = applyAnnulus(handles, id, od, scale, centroid);
+        N = N.loadMask(mask);
+        imshow(N.maskedI);
+        roifile = fullfile(data.imagePath, 'neurites_annulus.tif');
+        imwrite(mask, roifile);
+        status = sprintf('Annulus mask created: %s.', roifile);
+        updateStatus(handles,status);
+        disp(status)
         
     end
 end
@@ -1145,9 +1155,8 @@ function p = showtrack(source,callbackdata,ix)
     set(hId,'UserData',hData);
     
 function changeSoma(source,callbackdata)
-    hId = findobj('Tag','btnIdentify');
-    hNData = get(hId,'UserData');
-    N1 = hNData.N;
+    nH = findobj('Tag', 'menu_File_loadimage');
+    N1 = nH.UserData.analyser;
     s1 = [N1.soma1.centroid(:,1), N1.soma1.centroid(:,2)]
     s2 = [N1.soma2.centroid(:,1), N1.soma2.centroid(:,2)]
     prompt = {'Enter Soma 1 x,y coords:','Enter Soma 2 x,y coords:'};
@@ -1796,34 +1805,12 @@ configfile = fullfile(imagePath,imageFile);
 if (exist(configfile, 'file') == 2)
     M = readtable(configfile);
     loadConfig(M,handles);
-    msgbox('CSV files loaded - now run Register CSV and adjust config')
+    msgbox('Config file loaded')
 else
     msgbox('Unable to load config file')
 end
     
 
-
-
-
-
-% --- Executes on button press in chkCentre.
-function chkCentre_Callback(hObject, eventdata, handles)
-% hObject    handle to chkCentre (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of chkCentre
-nH = findobj('Tag', 'menu_File_loadimage');
-N = nH.UserData.analyser;
-%Show coordinates
-hCX = findobj('Tag','editCentroidX');
-hCY = findobj('Tag','editCentroidY');
-set(hCX,'String',N.soma.centroid(1));
-set(hCY,'String',N.soma.centroid(2));
-gca
-hold on
-plot(N.soma.centroid(:,1), N.soma.centroid(:,2),'color', 'b',...
-            'marker','x','linestyle','none','LineWidth', 2);
 
 
 function editOD_Callback(hObject, eventdata, handles)
@@ -1917,3 +1904,55 @@ function editCentroidY_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in chkCentre.
+function chkCentre_Callback(hObject, eventdata, handles)
+% hObject    handle to chkCentre (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+    nH = findobj('Tag', 'menu_File_loadimage');
+    N = nH.UserData.analyser;
+    %Show coordinates
+    hCX = findobj('Tag','editCentroidX');
+    hCY = findobj('Tag','editCentroidY');
+    if (isempty(get(hCX,'String')) || isempty(get(hCY,'String')))
+        CentroidX = N.soma.centroid(1);
+        CentroidY = N.soma.centroid(2);
+    else
+        CentroidX = str2double(get(hCX,'String'));
+        CentroidY = str2double(get(hCY,'String'));
+    end
+    
+    gca
+    hold on
+    p1 = plot(CentroidX, CentroidY,'color', 'b',...
+                'marker','x','linestyle','none','LineWidth', 2);
+    
+    dcm_obj = datacursormode()
+    set(dcm_obj,'DisplayStyle','datatip',...
+    'SnapToDataVertex','off','Enable','on')
+    status = sprintf('Click on figure at required centroid, then press Return.');
+    updateStatus(handles,status);
+    disp(status)
+    
+    % Wait while the user does this.
+    pause 
+
+    c_info = getCursorInfo(dcm_obj);
+    pos = c_info.Position
+    datacursormode off
+    set(hCX, 'String',num2str(pos(1)));
+	set(hCY, 'String',num2str(pos(2)));
+    
+    N.soma.centroid = [pos(1) pos(2)]
+    
+    delete(p1);
+    plot(N.soma.centroid(:,1), N.soma.centroid(:,2),'color', 'r',...
+            'marker','+','linestyle','none','LineWidth', 2);
+    
+    %save back
+    nH.UserData.analyser = N;
+    
+    

@@ -220,7 +220,9 @@ function btnBrowser_Callback(hObject, eventdata, handles)
     %hFig = hSP.Parent; %figure
     api = iptgetapi(hSP);
     api.replaceImage(I)
-    
+    % Reset magnification
+    mag = api.findFitMag()
+    api.setMagnification(mag);
     %Panel 2 - show histogram  
     [cell1,cell2]=generateHistogram(I,handles);
     data = struct('img',I, 'imagePath',imagePath,'inputfile', inputPath, ...
@@ -1085,6 +1087,7 @@ function p = showtrack(source,callbackdata,ix)
     set(hId,'UserData',hData);
     
 function changeSoma(source,callbackdata)
+    
     hId = findobj('Tag','btnIdentify');
     hNData = get(hId,'UserData');
     N1 = hNData.N;

@@ -46,8 +46,9 @@ classdef NeuritesAnalyser
             obj.gbw = G;
          end
          %Find cell somas
-         obj.soma1 = obj.findSoma(obj.rbw);
-         obj.soma2 = obj.findSoma(obj.gbw);
+         display = 1;
+         obj.soma1 = obj.findSoma(obj.rbw, display);
+         obj.soma2 = obj.findSoma(obj.gbw, display);
          
          obj.maskedR = obj.rbw; % Simply a copy at first.
          %attempt to reduce to skeleton
@@ -76,7 +77,7 @@ classdef NeuritesAnalyser
           end
       end
       
-      function soma = findSoma(obj, rbw)
+      function soma = findSoma(obj, rbw, display)
         %Isolate soma for analysis by removing dendrites
         %BW = imfill(rbw,'holes');
         BW = bwmorph(rbw,'majority');
@@ -112,11 +113,13 @@ classdef NeuritesAnalyser
         c = Centroid(idx,:);
         
         soma = NeuritesSoma(Area(idx),Perimeter(idx),c)
-%         figure
-%         imshow(label2rgb(L, @jet, [.5 .5 .5]))
-%         hold on
-%         plot(soma.centroid(:,1), soma.centroid(:,2),'color', 'r',...
-%             'marker','o','linestyle','none','LineWidth', 2);
+        if (display)
+         figure
+         imshow(label2rgb(L, @jet, [.5 .5 .5]))
+         hold on
+         plot(soma.centroid(:,1), soma.centroid(:,2),'color', 'r',...
+             'marker','o','linestyle','none','LineWidth', 2);
+        end
         
       end
       
