@@ -24,7 +24,7 @@ function varargout = NeuritesAnnulusAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAnnulusAppUI
 
-% Last Modified by GUIDE v2.5 09-Jun-2016 18:34:41
+% Last Modified by GUIDE v2.5 14-Jun-2016 17:31:18
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -184,8 +184,9 @@ function menu_File_loadimage_Callback(hObject, eventdata, handles)
 		'Select neuron image', ...
 		'MultiSelect', 'off');
     inputPath = fullfile(imagePath,imageFile);
-    updateStatus(handles,'Loading image ....');
+    h = msgbox('Loading image ....');
     I = imread(inputPath);
+    delete(h);
     %load image in panel
     axes(handles.axes1);
     hSP = get(handles.axes1,'parent');
@@ -744,45 +745,43 @@ function updateStatus(handles,string)
         set(handles.textOutput, 'string', string, 'Foreground', [0 0 0])
     end
     
-function [colnames,T] = analyseAnnulus(handles)
+function T = analyseAnnulus(handles)
     % Whole annulus, then partition via set arc length at different angles
     % Get masked image
     h = findobj('Tag','menu_File_loadimage');
     %data = h.UserData;
     data = get(h,'UserData');
     N = data.analyser;
-    if exists(N.maskedI)
-        imshow(N.maskedI);
-        %get annulus mask
-        inputPath = fullfilepath(data.imagePath,'neurites_annulus.tif');
-        mask = imread(inputPath);
-%         [x,y] = size(I);
-%         [r,c] = find(I > 0);
-%         p = [r(1),c(1)]; %starting point
-%         contour = bwtraceboundary(I,p,'E',8,Inf,'counterclockwise');
-%         xi = contour(:,2);
-%         yi = contour(:,1);
-%         %save points
-%         dataroi = struct('roi', I, 'xi',xi,'yi',yi,'x',x,'y',y);
-         mask_area = bwarea(mask)
-         annulus_area= bwarea(N.maskedI) %Total On pixels
-         neurites_area = mask_area - annulus_area %neurites only
-         colnames = {'Mask' 'Annulus' 'Neurites'};
-         T = table(mask_area, annulus_area,neurites_area);
-        % [colnames,T] = N.generateTable(types,cell1label, cell2label);
+    if length(N.maskedI) > 0
+        imshow(N.maskedI); 
+        %Get scale factor
+        hScale = findobj('Tag','editScale');
+        Scale = str2double(get(hScale,'String'));
+        Scale = Scale * Scale;
+        % Calculate full annulus area
+        mask_area = bwarea(N.Iroi)
+        annulus_area= bwarea(N.maskedI) %Total On pixels
+        neurites_area = (mask_area - annulus_area)/Scale %neurites only
+        %Annulus = {'Full';'45o';'90o';'135o';'180o'};
+        Annulus = [360;45;90;135;180];
+        neurites_num= 5;
+        Area=[neurites_area;0;0;0;0];
+        Number = [neurites_num;0;0;0;0];
+        T = table(Annulus,Area,Number)
+       
     else
         status = sprintf('Create Annulus mask first');
         updateStatus(handles,status);
     end
 
 function btnAnalysis_Callback(hObject, eventdata, handles)
-    [colnames,T] = analyseAnnulus(handles);
+    T = analyseAnnulus(handles);
     htable = findobj('Tag','uitableResults');
     %Save data
-    set(htable,'data',T,'ColumnName',colnames);
+    set(htable,'data',[T.Annulus T.Area T.Number],'ColumnName', {'Annulus' 'Area' 'Number'});
     %save to file
-    outputfile = fullfile(pathname, 'neurites_data.csv');
-    saveDataFile(outputfile, colnames, T);
+   % outputfile = fullfile(pathname, 'neurites_annulus_data.csv');
+   % saveDataFile(outputfile, T);
     
 
 % --- Executes on button press in btnAnalysis.
@@ -1506,13 +1505,13 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in checkboxShowplots.
-function checkboxShowplots_Callback(hObject, eventdata, handles)
-% hObject    handle to checkboxShowplots (see GCBO)
+% --- Executes on button press in cbShowCentroid.
+function cbShowCentroid_Callback(hObject, eventdata, handles)
+% hObject    handle to cbShowCentroid (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of checkboxShowplots
+% Hint: get(hObject,'Value') returns toggle state of cbShowCentroid
 
 
 % --- Executes on button press in checkboxEnpassant.
@@ -1795,41 +1794,44 @@ function Menu_LoadMask_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
+hB = findobj('Tag', 'menu_File_loadimage');
+hfdata = get(hB,'UserData');
+imagePath = hfdata.imagePath;
 [imageFile, imagePath, filterIndex] = ...
   uigetfile(fileTypes, ...
     'Select mask image', ...
     'MultiSelect', 'off');
 inputPath = fullfile(imagePath,imageFile);
 I = imread(inputPath);
-[x,y] = size(I);
-[r,c] = find(I > 0);
-p = [r(1),c(1)]; %starting point
-contour = bwtraceboundary(I,p,'E',8,Inf,'counterclockwise');
-xi = contour(:,2);
-yi = contour(:,1);
-%save points
-dataroi = struct('roi', I, 'xi',xi,'yi',yi,'x',x,'y',y);
-hB = findobj('Tag', 'radioROI');
-set(hB,'UserData',dataroi);
-%display roi
-axes(handles.axes2);
-cla;
-imshow(I)
-hold on;
-plot(xi,yi,'b','LineWidth',1);
-hold off;
-title('ROI Mask','FontSize', 10);
 updateStatus(handles,'Mask loaded from file');
+hfdata.roi_I=I;
+
+%colors=['b' 'g' 'r' 'c' 'm' 'y'];
+[B,L,N,A] = bwboundaries(I);
+%display roi
 axes(handles.axes1);
 hold on;
-plot(xi,yi,'b--','LineWidth',1);
-hold off;
-%save ROI
-hfiles = findobj('Tag','btnBrowser');
-hfdata = get(hfiles,'UserData');
-roifile = fullfile(hfdata.imagePath, 'neurites_roi.tif');
-imwrite(I, roifile);
+for k=1:length(B),
+  boundary = B{k};
+  xi = boundary(:,2);
+  yi = boundary(:,1);
+  plot(xi,yi,'b--','LineWidth',1);
+end
 
+hold off;
+hfdata.roi_xy = B
+%save ROI as standard file (overwrites)
+roifile = fullfile(hfdata.imagePath, 'neurites_annulus.tif');
+if ~exist(roifile, 'file') == 2
+    imwrite(I, roifile);
+    hfdata.roifile = roifile;
+end
+%generate masked image
+N = hfdata.analyser;
+N = N.loadMask(I);
+%imshow(N.maskedI);
+hfdata.analyser = N;
+set(hB,'UserData',hfdata);
 
 % --------------------------------------------------------------------
 function Menu_LoadConfig_Callback(hObject, eventdata, handles)
@@ -1996,3 +1998,47 @@ function chkCentre_Callback(hObject, eventdata, handles)
     nH.UserData.analyser = N;
     
     
+
+
+% --- Executes on slider movement.
+function sliderStart_Callback(hObject, eventdata, handles)
+% hObject    handle to sliderStart (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+
+
+% --- Executes during object creation, after setting all properties.
+function sliderStart_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to sliderStart (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+% --- Executes on slider movement.
+function sliderEnd_Callback(hObject, eventdata, handles)
+% hObject    handle to sliderEnd (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+
+
+% --- Executes during object creation, after setting all properties.
+function sliderEnd_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to sliderEnd (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
