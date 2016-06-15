@@ -24,7 +24,7 @@ function varargout = NeuritesAnnulusAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAnnulusAppUI
 
-% Last Modified by GUIDE v2.5 14-Jun-2016 17:31:18
+% Last Modified by GUIDE v2.5 15-Jun-2016 15:05:32
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -44,6 +44,9 @@ else
     gui_mainfcn(gui_State, varargin{:});
 end
 % End initialization code - DO NOT EDIT
+
+function r = getProgramtype
+    r = 'annulus';
 
 % --- Executes just before NeuritesAnnulusAppUI is made visible.
 function NeuritesAnnulusAppUI_OpeningFcn(hObject, eventdata, handles, varargin)
@@ -198,8 +201,8 @@ function menu_File_loadimage_Callback(hObject, eventdata, handles)
     htable = findobj('Tag','uitableResults');
     set(htable,'Data',[]);
     %Clear configuration
-    clearConfig(handles,0);
-    clearCSVdata(handles);
+    clearConfig(getProgramtype, 0);
+    clearCSVdata(getProgramtype);
     %Directions
     updateStatus(handles,'Image loaded.');
     %Save image analyser
@@ -288,7 +291,7 @@ if ( ~isempty(csvdata))
                 M.CentroidY = N.soma.centroid(2);
             end
         end
-        loadConfig(M,handles);
+        loadConfig(M,getProgramtype,0);
         
         hscale = M.Scale;
         shiftx = M.Shiftx;
@@ -322,135 +325,7 @@ if ( ~isempty(csvdata))
     end
     hold off;
 end
-   
- 
-    
-%Estimate parameters for overlay of CSV data onto image
-function M = estimateOverlay(handles, I,cell1csv)
-    Img = rgb2gray(I);
-    Tb = readtable(cell1csv);
-    
-    %CSV data in um
-    mi = min(Tb.StartX);
-    if (min(Tb.EndX) < mi)
-        rowi = find(Tb.EndX == min(Tb.EndX));
-        S1 = [Tb.EndX(rowi),Tb.EndY(rowi)];
-    else
-        rowi = find(Tb.StartX == min(Tb.StartX));
-        S1 = [Tb.StartX(rowi),Tb.StartY(rowi)];
-    end
-    mx = max(Tb.StartX);
-    if (max(Tb.EndX) > mx)
-        rowi = find(Tb.EndX == max(Tb.EndX));
-        S2 = [Tb.EndX(rowi),Tb.EndY(rowi)];
-    else
-        rowi = find(Tb.StartX == max(Tb.StartX));
-        S2 = [Tb.StartX(rowi),Tb.StartY(rowi)];
-        
-    end
-    if (length(S1(:,1)) > 1)
-        rowi = find(S1(:,2) == max(S1(:,2)));
-        S1 = [S1(rowi,1),S1(rowi,2)];
-    end
-    if (length(S2(:,1)) > 1)
-        rowi = find(S2(:,2) == max(S2(:,2)));
-        S2 = [S2(rowi,1),S2(rowi,2)];
-    end
-    C1 = cat(1,S1,S2);
-    csvlength = pdist(C1,'euclidean');
-    %Image coords - 
-    LI = bwlabel(Img);
-    s = regionprops(LI, 'Area', 'BoundingBox','Extrema');
-    i = 1;
-    Area = cat(1,s.Area);
-    if (length(s) > 1)
-        i = find(Area==max(Area));
-    end
-%     S3=s(i).Extrema(1,:);
-%     S4=s(i).Extrema(4,:);
-%     S3=[s(i).BoundingBox(1) s(i).BoundingBox(2)];
-%     S4=[s(i).BoundingBox(1)+s(i).BoundingBox(3)  s(i).BoundingBox(2)+s(i).BoundingBox(4)];
-    Ic = corner(Img,'Harris','SensitivityFactor',0.02);
-    xi = Ic(:,1)==min(Ic(:,1));
-    S3 = Ic(xi,:)
-    xm = Ic(:,1)==max(Ic(:,1));
-    S4 = Ic(xm,:)
-    if (length(S3(:,1)) > 1)
-        rowi = find(S3(:,2) == max(S3(:,2)));
-        S3 = [S3(rowi,1),S3(rowi,2)];
-    end
-    if (length(S4(:,1)) > 1)
-        rowi = find(S4(:,2) == max(S4(:,2)));
-        S4 = [S4(rowi,1),S4(rowi,2)];
-    end
-    % Find scale
-    C2 = cat(1,S3,S4);
-    imglength = pdist(C2,'euclidean');
-    Scale = round(imglength/csvlength,1)
-    S = S1 * Scale;
-    
-    %Plot
-    axes(handles.axes1);
-    imshow(Img);
-    hold on;
-    %plot(S(1),S(2),'color','b','Marker','o','LineWidth', 2);
-    plot(S3(1),S3(2),'color','y','Marker','x','LineWidth', 2);
-    plot(S4(1),S4(2),'color','r','Marker','x','LineWidth', 2);
-    hold off;
-    %Load data
-    Fit = 10;
-    
-    Shiftx = round(S3(1) - S(1),2);
-    Shifty = round(-S3(2) - S(2),2);
-    
-    
-    M = table(Scale, Fit, Shiftx, Shifty);
-    
-        
-        
-function loadConfig(M, handles)
-    hScale = findobj('Tag','editScale');
-    hSX = findobj('Tag','editShiftx');
-    hSY = findobj('Tag','editShifty');
-    hFit = findobj('Tag','editFit');
-    hCx = findobj('Tag','editCentroidX');
-    hCy = findobj('Tag','editCentroidY');
-    hOD = findobj('Tag','editOD');
-    hID = findobj('Tag','editID');
-    set(hScale,'String',num2str(M.Scale));
-    set(hFit,'String',num2str(M.Fit));
-    set(hSX,'String',num2str(M.Shiftx));
-    set(hSY,'String',num2str(M.Shifty));
-    set(hCx,'String',num2str(M.CentroidX));
-    set(hCy,'String',num2str(M.CentroidY));
-    set(hOD,'String',num2str(M.AnnulusOD));
-    set(hID,'String',num2str(M.AnnulusID));
-    
-
-function clearConfig(handles,clearlabels)
-    initval = '';
-    hScale = findobj('Tag','editScale');
-    hSX = findobj('Tag','editShiftx');
-    hSY = findobj('Tag','editShifty');
-    hFit = findobj('Tag','editFit');
-    hCx = findobj('Tag','editCentroidX');
-    hCy = findobj('Tag','editCentroidY');
-    hOD = findobj('Tag','editOD');
-    hID = findobj('Tag','editID');
-    
-    set(hScale,'String',initval);
-    set(hFit,'String',initval);
-    set(hSX,'String',initval);
-    set(hSY,'String',initval);
-    set(hCx,'String',initval);
-    set(hCy,'String',initval);
-    set(hOD,'String',initval);
-    set(hID,'String',initval);
-
-function clearCSVdata(handles)
-    hCf0 = findobj('Tag', 'Menu_File_loadcsv');
-    set(hCf0,'UserData',{});
-    
+       
 
     % --- Executes on button press in pushbutton9.
 function saveConfig_Callback(hObject, eventdata, handles)
@@ -488,46 +363,9 @@ function saveConfig_Callback(hObject, eventdata, handles)
     status = sprintf('Config file saved:%s',outputfile);
     updateStatus(handles,status);
     
-function [cell1,cell2]=generateHistogram(I, handles)
-    %Generate histogram
-    IG = rgb2gray(I);
-    axes(handles.axes2);
-    cla;
-    
-    %histogram - exclude white
-    [px,levels] = imhist(IG);
-    bar(px);
-    %histogram - exclude white - this should be configurable?
-    xlim([0 254]);
-    xlabel('color values')
-    ylabel('pixels')
-    grid on;
-    
-    title('Image Histogram');
-    hBg = findobj('Tag','radioWhite');
-    bg = 256;
-    if (get(hBg,'Value') == 0)
-        bg = 0;
-    end
-    [cell1,cell2] = SplitCells(I,bg);
 
 
-function rtn = checkHeaders(csvfile,hdrs)
-    rtn = 0;           
-    fid = fopen(csvfile);
-    C = textscan(fid, '%s %s %s %s %s %s %s %s %s %s %s', 'delimiter', ',', ...
-                 'treatAsEmpty', {'NA', 'na'}, ...
-                 'commentStyle', '//');
-    fclose(fid);
-    for i=1: length(C)
-        v = strjoin(C{1,i}(1));
-        v = strrep(v,' ','');
-        if (size(strfind(hdrs,v)) == 0)
-            csvfile
-            rtn = v
-            break
-        end
-    end
+
     
         
 
@@ -595,36 +433,30 @@ if (get(hObject,'Value') > 0)
     axes(handles.axes1);
     %set interactive polygon tool
     [x,y, BW, xi, yi] = roipoly;
-    
-    %ROI stats
-    numPixels = sum(BW(:))
-    roi_area = polyarea(xi,yi);
-    %temp - copy to file
+    %save data
+    dataroi = struct('roi', BW, 'xi',xi,'yi',yi,'x',x,'y',y);
     hfiles = findobj('Tag','btnBrowser');
     %hfdata = hfiles.UserData;
     hfdata = get(hfiles,'UserData');
     roifile = fullfile(hfdata.imagePath, 'neurites_roi.tif');
     imwrite(BW, roifile);
-    %save data
-    dataroi = struct('roi', BW, 'xi',xi,'yi',yi,'x',x,'y',y);
-    %hObject.UserData = dataroi;
     set(hObject,'UserData',dataroi);
+    
     %show mask image in plot 2
     %setTitlePlot2(handles,'');   
     axes(handles.axes2);
     cla;
     imshow(BW)
     title('ROI Mask');
+    
     %Convert ROI to um2 if csv config loaded
     hScale = findobj('Tag', 'editScale');
     scale = str2double(get(hScale,'String'));
     if (isempty(scale) || scale ==0)
         scale = 1;
     end
-    roi_um2 = roi_area / scale;
+    [RCols, RData] = areaPolyROI(dataroi,scale);
     %Results table
-    RCols={'ROI Number Pixels', 'ROI Area (px)','ROI Area (um2)'};
-    RData=[numPixels, roi_area,roi_um2];
     htable = findobj('Tag','uitableResults');
     set(htable,'data',RData,'ColumnName',RCols);
     %Directions
@@ -657,46 +489,16 @@ function radioDraw_Callback(hObject, eventdata, handles)
 
 % Hint: get(hObject,'Value') returns toggle state of radioDraw
 
-function outermask = applyAnnulus(handles, id, od, scale, centroid)
-        rid = (id * scale);
-        rod = (od * scale);
-        x = centroid(1) - (rod/2);  % min_x
-        y = centroid(2) - (rod/2);  % min_y
-        outer = [x y rod rod]; % [min_x min_y diam diam]
-        % Plot center
-        
-        hold on;
-        plot(centroid(1), centroid(2), 'r+', 'LineWidth', 2, 'MarkerSize', 5);
-        grid on;
-        hCircle1 = imellipse(gca, outer);
-        status = sprintf('Double-Click on OUTER annulus to accept position.');
-        updateStatus(handles,status);
-        disp(status)
-        position = wait(hCircle1); %confirm position
-        outermask = hCircle1.createMask;
-        %[xmin ymin width height] = position
-        %[3995.90774907749 4541.9667896679 3500 3500]
-        x = centroid(1) - (rid/2)
-        y = centroid(2) - (rid/2)
-        inner = [x y rid rid]
-        hCircle2 = imellipse(gca, inner);
-        status = sprintf('Double-Click on INNER annulus to accept position.');
-        updateStatus(handles,status);
-        disp(status)
-        position = wait(hCircle2); %confirm position
-        innermask = hCircle2.createMask;
-        % create annulus outer-inner
-        outermask(innermask) = 0;
-        
+      
        
 
-% --- Executes on button press in radioAuto.
-function radioAuto_Callback(hObject, eventdata, handles)
-% hObject    handle to radioAuto (see GCBO)
+% --- Executes on button press in btnAnnulus.
+function btnAnnulus_Callback(hObject, eventdata, handles)
+% hObject    handle to btnAnnulus (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hint: get(hObject,'Value') returns toggle state of radioAuto
+% Hint: get(hObject,'Value') returns toggle state of btnAnnulus
 if (get(hObject,'Value') > 0)
     hOD = findobj('Tag','editOD');
     od = str2double(get(hOD,'String'));
@@ -713,7 +515,7 @@ if (get(hObject,'Value') > 0)
         
         N = data.analyser;
         centroid =N.soma.centroid;
-        mask = applyAnnulus(handles, id, od, scale, centroid);
+        mask = applyAnnulus(id, od, scale, centroid);
         N = N.loadMask(mask);
         imshow(N.maskedI);
         roifile = fullfile(data.imagePath, 'neurites_annulus.tif');
@@ -733,205 +535,28 @@ function radioAnnNone_Callback(hObject, eventdata, handles)
 
 % Hint: get(hObject,'Value') returns toggle state of radioAnnNone
 
-
-
-
-
-
-function updateStatus(handles,string)
-    if strfind(string,'ERROR')
-        set(handles.textOutput, 'string', string, 'Foreground', [1 0 0])
-    else
-        set(handles.textOutput, 'string', string, 'Foreground', [0 0 0])
-    end
-    
-function T = analyseAnnulus(handles)
-    % Whole annulus, then partition via set arc length at different angles
-    % Get masked image
+% --- Executes on button press in btnAnalysis.
+function btnAnalysis_Callback(hObject, eventdata, handles)
     h = findobj('Tag','menu_File_loadimage');
     %data = h.UserData;
     data = get(h,'UserData');
     N = data.analyser;
     if length(N.maskedI) > 0
-        imshow(N.maskedI); 
         %Get scale factor
         hScale = findobj('Tag','editScale');
         Scale = str2double(get(hScale,'String'));
-        Scale = Scale * Scale;
-        % Calculate full annulus area
-        mask_area = bwarea(N.Iroi)
-        annulus_area= bwarea(N.maskedI) %Total On pixels
-        neurites_area = (mask_area - annulus_area)/Scale %neurites only
-        %Annulus = {'Full';'45o';'90o';'135o';'180o'};
-        Annulus = [360;45;90;135;180];
-        neurites_num= 5;
-        Area=[neurites_area;0;0;0;0];
-        Number = [neurites_num;0;0;0;0];
-        T = table(Annulus,Area,Number)
-       
+        hOD = findobj('Tag','editOD');
+        od = str2double(get(hOD,'String'));
+        [T,colnames] = analyseAnnulus(Scale, N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2,1);
+        pathname = data.imagePath;
+        %save to file
+       % outputfile = fullfile(pathname, 'neurites_annulus_data.csv');
+       % saveDataFile(outputfile, colnames,T);
     else
-        status = sprintf('Create Annulus mask first');
-        updateStatus(handles,status);
+        msgbox('Create Annulus mask first');
     end
-
-function btnAnalysis_Callback(hObject, eventdata, handles)
-    T = analyseAnnulus(handles);
-    htable = findobj('Tag','uitableResults');
-    %Save data
-    set(htable,'data',[T.Annulus T.Area T.Number],'ColumnName', {'Annulus' 'Area' 'Number'});
-    %save to file
-   % outputfile = fullfile(pathname, 'neurites_annulus_data.csv');
-   % saveDataFile(outputfile, T);
     
 
-% --- Executes on button press in btnAnalysis.
-function btnIdentify_Callback(hObject, eventdata, handles)
-% hObject    handle to btnAnalysis (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-clearplots();
-% Get grayscale img
-h = findobj('Tag','btnBrowser');
-%data = h.UserData;
-data = get(h,'UserData');
-hRoi = findobj('Tag','radioROI');
-%roidata = hRoi.UserData;
-roidata = get(hRoi,'UserData');
-%csvdata = handles.btnAnalysisFiles.UserData;
-hCSV = findobj('Tag','btnAnalysisFiles');
-csvdata = get(hCSV,'UserData');
-if (~isempty(roidata))
-    roi = roidata.roi;
-    xi = roidata.xi;
-    yi = roidata.yi;
-else
-    if(~isempty(csvdata))
-        roi = fullfile(csvdata.csvPath, 'neurites_roi.tif');
-        if(~exist(roi, 'file'))
-            errordlg('Please set ROI first','ROI error!')
-            return
-        end
-    else
-        errordlg('Please set ROI first','ROI error!')
-        return
-    end
-end
-
-% Get configuration
-hScale = findobj('Tag','editScale');
-if (isempty(get(hScale,'String')))
-    errordlg('Please set Configuration first with Register CSV','Configuration error!')
-    return
-end
-h1 = findobj('Tag', 'editMinlength');
-minlength = str2double(get(h1,'String'));
-h2 = findobj('Tag', 'editTolerance');
-tolerance = str2double(get(h2,'String'));
-h3 = findobj('Tag', 'checkboxShowplots');
-showplots = get(h3,'Value');
-h4 = findobj('Tag', 'chkCentre');
-centred = get(h4,'Value');
-types =[1];
-
-hSX = findobj('Tag','editShiftx');
-hSY = findobj('Tag','editShifty');
-hFit = findobj('Tag','editFit');
-
-scale = str2double(get(hScale,'String'));
-shiftx = str2double(get(hSX,'String'));
-shifty = str2double(get(hSY,'String'));
-fit = str2double(get(hFit,'String'));
-hC1 = findobj('Tag','editCell1');
-cell1label = get(hC1, 'String');
-hC2 = findobj('Tag','editCell2');
-cell2label = get(hC2, 'String');
-%Run analysis
-hwb = waitbar(0,'Running analysis ...');
-steps = 100;
-step = 10;
-waitbar(step / steps)
-%show figs
-axes(handles.axes2);
-cla;
-%Run analyser
-N = NeuritesAnalyser(data.inputfile,roi,data.cell1,data.cell2);
-
-title('Analysed ROI');
-N = N.findSegments(minlength,tolerance);
-step = step + 10;
-waitbar(step / steps)
-
-N = N.analyseSynapses(showplots,types);
-step = step + 10;
-waitbar(step / steps)
-
-nocsvflag = 0;
-
-if ( ~isempty(csvdata))
-    csv1 = fullfile(csvdata.csvPath, csvdata.cell1file);
-    csv2 = fullfile(csvdata.csvPath, csvdata.cell2file);
-    N = N.measureSynapses(types,csv1,csv2,scale,shiftx,shifty,fit);
-    pathname = csvdata.csvPath;
-else
-    nocsvflag = 1;
-    pathname = data.imagePath;
-end
-step = step + 10;
-waitbar(step / steps)
-
-htable = findobj('Tag','uitableResults');
-%Save data
-[colnames,T] = N.generateTable(types,cell1label, cell2label);
-set(htable,'data',T,'ColumnName',colnames);
-%save to file
-outputfile = fullfile(pathname, 'neurites_data.csv');
-saveDataFile(outputfile, colnames, T);
-%Save coords centred to DS centroid at [0,0]
-if (centred)
-    [colnames,T1] = N.generateCentredDataTable(types,cell1label, cell2label);
-    %save to file
-    outputfile = fullfile(pathname, 'neurites_data_centred.csv');
-    saveDataFile(outputfile, colnames, T1);
-end
-%save analysis
-dataN = struct('N', N, 'numsynapses',length(N.Synapses));
-%hObject.UserData = dataN;
-set(hObject,'UserData',dataN);
-if (nocsvflag)
-    csvmsg ='Load CSV files to get full statistics.';
-else
-    csvmsg = 'Statistics from CSV files.';
-end
-ctr = 0;
-step = steps;
-waitbar(step / steps)
-close(hwb);
-
-axes(handles.axes1);
-hold on;
-%Plot ROI for comparison
-if (~isempty(roidata))
-    plot(xi, yi, '--b','LineWidth', 1);
-end
-mycolors=['m' 'b' 'c'];
-%mytypes =['En passant' 'End point' 'Intersection'];
-
-for i=1:length(N.Synapses)
-    syn = N.Synapses{i};
-    if (ismember(syn.SynapseType,types))
-        ctr = ctr + 1;
-        %plot onto original
-        plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-            mycolors(syn.SynapseType),'marker','X','linestyle','none','LineWidth', 2);
-        plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
-            mycolors(syn.SynapseType),'marker','X','linestyle','none','LineWidth', 2);
-    end
-end
-hold off;
-
-status = sprintf('Found %d synaptic regions. Saved to %s . %s', ctr,outputfile,csvmsg);
-updateStatus(handles,status);
-msgbox('Processing Complete!','Info');
 
 
 function saveDataFile(outputfile,colnames,tabledata)
@@ -940,524 +565,6 @@ function saveDataFile(outputfile,colnames,tabledata)
     T
     writetable(T,outputfile);
     
-
-
-
-
-% --- Executes on button press in btnSplitcells.
-function btnSplitcells_Callback(hObject, eventdata, handles)
-% hObject    handle to btnSplitcells (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-%Use RGB image
-h = findobj('Tag','btnBrowser');
-%data = h.UserData;
-data = get(h,'UserData');
-I = data.img;
-hBg = findobj('Tag','radioWhite');
-bg = 256;
-if (get(hBg,'Value') == 0)
-    bg = 0;
-end
-[cell1,cell2] = SplitCells(I,bg);
-
-
-% --- Executes on button press in btnReview.
-function btnReview_Callback(hObject, eventdata, handles)
-% hObject    handle to btnReview (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h = findobj('Tag','btnBrowser');
-hData = get(h,'UserData');
-I = hData.img;
-f = figure('WindowStyle','normal');
-im = imshow(I);
- 
-hold on;   
-%Get Synapse data
-hId = findobj('Tag','btnIdentify');
-hNData = get(hId,'UserData');
-types = [1];
-hC1 = findobj('Tag','editCell1');
-cell1label = strjoin(get(hC1, 'String'));
-hC2 = findobj('Tag','editCell2');
-cell2label = strjoin(get(hC2, 'String'));
-c=2; %default cell2
-if (~isempty(hNData) && hNData.numsynapses > 0)
-    N1 = hNData.N;
-%     changes = 0;
-%     deleted = 0;
-%     total = length(N1.Synapses);
-    i = 1;
-    syn = N1.Synapses{i};
-    plot(N1.soma1.centroid(:,1), N1.soma1.centroid(:,2),'color', 'b',...
-            'marker','o','linestyle','none','LineWidth', 2);
-    plot(N1.soma2.centroid(:,1), N1.soma2.centroid(:,2),'color','b',...
-            'marker','o','linestyle','none','LineWidth', 2);
-    % Add buttons to gui
-    str1 = sprintf('%s soma',cell1label);
-    str2 = sprintf('%s end',cell1label);
-    str3 = sprintf('%s soma',cell2label);
-    str4 = sprintf('%s end',cell2label);
-    options = {'Select type',str1,str2,str3,str4};
-    c1 = sprintf('%s',cell1label);
-    c2 = sprintf('%s',cell2label);
-    colouroptions = {'Blue (default)','Red','Yellow','Cyan','Magenta','Black'};
-    
-    hp = uipanel('Parent',f,'Title','Review controls','FontSize',12,...
-             'Tag','panelReview','BackgroundColor','white',...
-             'Units','pixels','Position',[5 5 600 100]);
-   tth = uicontrol(hp,'Style','text','String','Select Review Type',...
-       'Tag','txtReviewStatus',...
-       'Units','pixels','Position',[5 50 100 30]);
-   pth = uicontrol(hp,'Style','popup','String',options,...
-       'TooltipString','Select type',...
-       'Units','pixels','Position',[5 5 100 40],...
-       'Callback',{@setreviewtype,syn,N1});
-
-   tth1 = uicontrol(hp,'Style','pushbutton','String','Previous',...
-       'Units','pixels','Position',[120 50 100 25],...
-       'Visible','off','Callback',{@showtrack,-1});
-   tth2 = uicontrol(hp,'Style','pushbutton','String','Next',...
-       'Units','pixels','Position',[220 50 100 25],...
-       'Visible','off','Callback',{@showtrack,1}); 
-   tth3 = uicontrol(hp,'Style','checkbox','String','Delete Synapse',...
-       'Units','pixels','Position',[400 50 120 25],...
-       'Tag','btnReviewDelete',...
-       'Visible','off','Callback',{@deleteSynapse});
-   tth4 = uicontrol(hp,'Style','pushbutton','String','Remove Branch',...
-       'Units','pixels','Position',[230 5 100 25],...
-       'Visible','off','Callback',{@removeRegion});
-     
-   tth5 = uicontrol(hp,'Style','pushbutton','String','SAVE',...
-       'Units','pixels','Position',[330 5 80 25], ...
-       'Visible','off','Callback',{@acceptChanges,handles,cell1label, cell2label} );
-   
-   tth6 = uicontrol(hp,'Style','pushbutton','String','Clear',...
-       'Units','pixels','Position',[320 50 60 25],...
-       'Visible','off','Callback',@clearplots );
-   tth7 = uicontrol(hp,'Style','pushbutton','String','Show All',...
-       'Units','pixels','Position',[500 50 80 25],...
-       'Visible','off','Callback',{@showAll} );
-      %Select branch for display
-   
-   th0 = uicontrol(hp, 'Style','pushbutton','String',strcat('Filter ',c1),...
-       'Tag','btnFilter',...
-       'Units','pixels','Position',[420 5 80 25],...
-       'Visible','off','Callback',{@filterTree,1,c1} );
-   th1 = uicontrol(hp, 'Style','pushbutton','String',strcat('Filter ',c2),...
-       'Tag','btnFilter',...
-       'Units','pixels','Position',[500 5 80 25],...
-       'Visible','off','Callback',{@filterTree,2,c2} );
-   %Change Soma centroids
-    tth8 = uicontrol(hp, 'Style','pushbutton','String','Soma Centroids',...
-       'Tag','btnSomaCentroids',...
-       'Units','pixels','Position',[120 5 100 25],...
-       'Visible','on','Callback',{@changeSoma} );
-   %Change colour of overlay
-    tth9 = uicontrol(hp,'Style','popup','String',colouroptions,...
-       'TooltipString','Select colour',...
-       'Units','pixels','Position',[5 -20 100 40],...
-       'Callback',{@setcolour});
-   
-  else
-      msgbox('Cannot find synapse data! Run Analysis first.','Error');
-end
-function setcolour(source,callbackdata)
-    c = source.Value;
-    colours = ['b','r','y','c','m','k'];
-    hId = findobj('Tag','btnReview');
-    hData = get(hId,'UserData');
-    hData.colour =colours(c);
-    set(hId,'UserData',hData);
-    
-function setreviewtype(source,callbackdata,syn,N1)
-    c = source.Value -1;
-    hId = findobj('Tag','btnReview');
-    hData = get(hId,'UserData');
-    if (~isempty(hData))
-        p = hData.p;
-        s = hData.s;
-        delete(p);
-        delete(s);
-        deleted = hData.deleted;
-        changed = hData.changed;
-        colour = hData.colour;
-    else
-        deleted = [];
-        changed = [];
-        colour = 'b';
-    end
-    linestyle=':';
-    [s1,p] = plottrace(c,syn,linestyle,colour);
-    if c <=2
-        csvfile = N1.CSV1;
-    else
-        csvfile = N1.CSV2;
-    end
-    %Review Status
-    status = sprintf('Synapse %d of %d (%0.02f um)', 1, length(N1.Synapses),getSynDistance(c,syn));
-    hR = findobj('Tag','txtReviewStatus');
-    hR.String = status;
-    %Enable buttons
-    hBtn = findobj('Tag','panelReview');
-    kids = allchild(hBtn);
-    for i=1:length(kids)
-    	kids(i).Visible = 'on';
-    end 
-    %save data
-    reviewdata = struct('i',1,'s',s1,'reviewtype',c,'p',p,'csvfile',csvfile,...
-        'deleted',deleted,'changed',changed,'colour',colour);
-    set(hId,'UserData',reviewdata);
-
-function d = getSynDistance(c,syn)
-    switch c
-        case 1
-            d = syn.SomaC1;
-        case 2
-            d = syn.NeuriteEndC1;
-        case 3
-            d = syn.SomaC2;
-        case 4
-            d = syn.NeuriteEndC2;
-    end
-    
-function [s1,p] = plottrace(c,syn,linestyle,colour)
-    if (isempty(colour))
-        colour = 'b';
-    end
-    if (isempty(linestyle))
-        linestyle = ':';
-    end
-    switch c
-        case 1
-            s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            p = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
-                'color',colour,'linestyle',linestyle,'LineWidth', 2);
-        case 2
-            p = plot(syn.EndpointsC1(:,1),syn.EndpointsC1(:,2),...
-                'color',colour,'linestyle',linestyle,'LineWidth', 2);
-            s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-        case 3
-            s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            p = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
-                'color',colour,'linestyle',linestyle,'LineWidth', 2);
-        case 4
-            s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
-                'm','marker','X','linestyle','none','LineWidth', 2);
-            p = plot(syn.EndpointsC2(:,1),syn.EndpointsC2(:,2), ...
-                'color',colour,'linestyle',linestyle,'LineWidth', 2);
-    end
-     
-function p = showtrack(source,callbackdata,ix)
-    hId = findobj('Tag','btnIdentify');
-    hNData = get(hId,'UserData');
-    N = hNData.N;
-    hId = findobj('Tag','btnReview');
-    hData = get(hId,'UserData');
-    i = hData.i;
-    if (i >= 1)
-        s = hData.s;
-        p = hData.p;
-        delete(s);
-        delete(p);
-    end
-    i = i + ix;
-    %no change if at limits
-    if (i < 1 || i > length(N.Synapses))
-        i = i - ix; 
-    end
-    c = hData.reviewtype;
-    syn = N.Synapses{i};
-    linestyle=':';
-    colour = hData.colour;
-    [s,p] = plottrace(c,syn,linestyle,colour);
-    
-    %Review Status
-    status = sprintf('Synapse %d of %d (%0.02f um)', i, length(N.Synapses),getSynDistance(c,syn));
-    hR = findobj('Tag','txtReviewStatus');
-    hR.String = status;
-    hD = findobj('Tag','btnReviewDelete');
-    if (ismember(i,hData.deleted))
-        hD.Value = 1;
-        set(p, 'color', [0.5 0.5 0.5]);
-    else
-        hD.Value = 0;
-    end
-    hData.p = p;
-    hData.i = i;
-    hData.s = s;
-    
-    set(hId,'UserData',hData);
-    
-function changeSoma(source,callbackdata)
-    nH = findobj('Tag', 'menu_File_loadimage');
-    N1 = nH.UserData.analyser;
-    s1 = [N1.soma1.centroid(:,1), N1.soma1.centroid(:,2)]
-    s2 = [N1.soma2.centroid(:,1), N1.soma2.centroid(:,2)]
-    prompt = {'Enter Soma 1 x,y coords:','Enter Soma 2 x,y coords:'};
-    dlg_title = 'Change Soma centroid positions';
-    num_lines = 1;
-    defaultans = {num2str(s1),num2str(s2)};
-    answer = inputdlg(prompt,dlg_title,num_lines,defaultans)
-    %save results
-    a1 = strsplit(answer{1},' ');
-    a2 = strsplit(answer{2},' ');
-    N1.soma1.centroid = [str2num(a1{1}) str2num(a1{2})]
-    N1.soma2.centroid = [str2num(a2{1}) str2num(a2{2})]
-    clearplots();
-    plot(N1.soma1.centroid(:,1), N1.soma1.centroid(:,2),'color', 'b',...
-            'marker','o','linestyle','none','LineWidth', 2);
-    plot(N1.soma2.centroid(:,1), N1.soma2.centroid(:,2),'color','b',...
-            'marker','o','linestyle','none','LineWidth', 2);
-    %save back
-    N1 = N1.updateSomaCalculations();
-    hNData.N = N1;
-    set(hId,'UserData',hNData);
-    
-
-
-function filterTree(source,callbackdata,cellnum, celllabel)
-    hNId = findobj('Tag','btnIdentify');
-    hNData = get(hNId,'UserData');
-    N1 = hNData.N;
-    branchoptions = { N1.getbranchoptions(1) N1.getbranchoptions(2)};   
-    prompt = sprintf('Select %s tree-branch:',celllabel);
-    [s,v] = listdlg('PromptString',prompt,...
-                'SelectionMode','multiple',...
-                'CancelString', 'None',...
-                'ListString',branchoptions{cellnum})
-    %save filters
-    if (v) 
-        b = branchoptions{cellnum}(s);
-        N1 = N1.setfilter(cellnum,b);
-    
-        %show selected tree-branches
-        hId = findobj('Tag','btnReview');
-        hData = get(hId,'UserData');
-        colour = hData.colour;
-        clearplots();
-        for i=1:length(N1.Synapses)
-            syn = N1.Synapses{i};
-            if cellnum == 1
-                tb = strcat(num2str(syn.TreeC1),'-',num2str(syn.BranchPointC1));
-                c = 1
-            else
-                tb = strcat(num2str(syn.TreeC2),'-',num2str(syn.BranchPointC2));
-                c = 3;
-            end
-            if (ismember(tb,b))
-                [s,p] = plottrace(c,syn,'-',colour);
-            end
-        end
-    else
-        %clear filters
-        b = {}
-        N1 = N1.setfilter(cellnum,b);
-    end
-    %save
-    hNData.N = N1;
-    set(hNId,'UserData',hNData);
-    
-function showAll(source,callbackdata)
-    hId = findobj('Tag','btnReview');
-    hData = get(hId,'UserData');
-    hId = findobj('Tag','btnIdentify');
-    hNData = get(hId,'UserData');
-    N1 = hNData.N;
-    c = hData.reviewtype;
-    colour = hData.colour;
-    clearplots();
-    plot(N1.soma1.centroid(:,1), N1.soma1.centroid(:,2),'color', 'b',...
-            'marker','o','linestyle','none','LineWidth', 2);
-    plot(N1.soma2.centroid(:,1), N1.soma2.centroid(:,2),'color','b',...
-            'marker','o','linestyle','none','LineWidth', 2);
-    for i=1:length(N1.Synapses)
-        syn = N1.Synapses{i};
-        [s,p] = plottrace(c,syn,'-',colour);
-         if (ismember(i,hData.deleted))
-            set(p, 'color', [0.5 0.5 0.5]);
-         end
-    end
-    %Also show ROI
-    hRoi = findobj('Tag','radioROI');
-    %roidata = hRoi.UserData;
-    roidata = get(hRoi,'UserData');
-    if (~isempty(roidata))
-        xi = roidata.xi;
-        yi = roidata.yi;
-        plot(xi, yi, '--b','LineWidth', 1);
-    end
-    
-function clearplots(source,callbackdata)
-    cla;
-    h = findobj('Tag','btnBrowser');
-    hData = get(h,'UserData');
-    I = hData.img;
-    %f = figure('WindowStyle','normal');
-    im = imshow(I);
- 
-%Mark for deletion (allows reversible)
-function deleteSynapse(source, callbackdata)
-    hId = findobj('Tag','btnReview');
-    hData = get(hId,'UserData');
-    i = hData.i;
-    p = hData.p;
-    s = hData.s;
-    %check toggle value
-    if (source.Value)
-        hData.deleted(end+1) = i;
-        set(p, 'color', [0.5 0.5 0.5]);
-        set(s, 'color', [0.5 0.5 0.5]);
-    else
-        remove = find(ismember(hData.deleted,i));
-        if (remove > 0)
-            hData.deleted(remove) = [];
-            set(p, 'color', 'b');
-            set(s, 'color', 'm');
-        end
-    end
-            
-    set(hId,'UserData',hData);
-    
-function N1 = removeRegion(source,callbackdata)
-    hId = findobj('Tag','btnIdentify');
-    hNData = get(hId,'UserData');
-    N1 = hNData.N;
-    hRId = findobj('Tag','btnReview');
-    hData = get(hRId,'UserData');
-    i = hData.i;
-    c = hData.reviewtype;
-    p = hData.p;
-    s = hData.s;
-    syn = N1.Synapses{i};
-    csvfile = hData.csvfile;
-    dcm_obj = datacursormode(gcf);
-    set(dcm_obj,'DisplayStyle','datatip',...
-        'SnapToDataVertex','on','Enable','on')
-    msgbox('Click on a branch to remove it, then click Enter.')
-    % Wait while the user does this.
-    pause 
-    c_info = getCursorInfo(dcm_obj);
-    cachesyn = syn;
-    syn = syn.removeBranch(c,csvfile,...
-      c_info.Target.XData(c_info.DataIndex),...
-      c_info.Target.YData(c_info.DataIndex));
-    delete(p);
-    delete(s);
-    linestyle=':';
-    [s,p] = plottrace(c,syn,linestyle);
-    
-    v = accept(i);
-    if(v==1)
-        dcm_obj.Enable='off';
-        N1.Synapses{i} = syn; %update
-        hData.changed(end+1) = i;
-        hNData.N = N1;
-        set(hId,'UserData',hNData);
-    else %reject change
-         syn = cachesyn;
-         [s,p] = plottrace(c,syn,linestyle);
-    end
-    hData.s = s;
-    hData.p = p;
-    set(hRId,'UserData',hData);
-
-function a = accept(synnum)
-    prompt = sprintf('Accept this measurement for synapse %d?',synnum);
-    %str = input(prompt,'s');
-    str = questdlg(prompt,'Synapse change',...
-        'Yes','No','Yes');
-    switch str
-        case 'Yes'
-            a = 1;
-        case 'No'
-            a = 0;
-    end
-
-function acceptChanges(source,callbackdata,handles,cell1label, cell2label)
-    prompt = 'Accept changes and update results (with filters)?';
-    str = questdlg(prompt,'Update results',...
-        'Yes','No','Yes');
-    hId = findobj('Tag','btnReview');
-    hData = get(hId,'UserData');
-    
-    switch str
-        case 'Yes'
-             hNId = findobj('Tag','btnIdentify');
-             hNData = get(hNId,'UserData');
-             N1 = hNData.N;
-             %remove deleted
-             for d=1:length(hData.deleted)
-                 i = hData.deleted(d);
-                 N1.Synapses{i} = [];
-             end
-             [colnames,T] = N1.generateTable([1],cell1label, cell2label);    
-             htable = findobj('Tag','uitableResults');
-             set(htable,'data',T,'ColumnName',colnames);
-             %save to file
-             hCSV = findobj('Tag','btnAnalysisFiles');
-             csvdata = get(hCSV,'UserData');
-             pathname = csvdata.csvPath;
-             outputfile = fullfile(pathname, 'neurites_data_review.csv');
-             [FileName,PathName] = uiputfile({'*.csv','CSV file'},...
-                 'Save Data', outputfile)
-             outputfile = fullfile(PathName,FileName);
-             saveDataFile(outputfile, colnames, T);
-             %Recopy synapses to new list
-             if (length(hData.deleted))
-                 cSynapses ={length(N1.Synapses)};
-                 m = 1;
-                 for j=1:length(N1.Synapses)
-                     syn = N1.Synapses{j};
-                     if (~isempty(syn))
-                         cSynapses{m} = syn;
-                         m = m+1;
-                     end
-                 end
-                 hNData.N.Synapses = cSynapses;
-             else
-                 hNData.N = N1;
-             end
-             
-             msg = sprintf('Changed %d synaptic regions. Deleted %d synaptic regions. \nData updated to %s', length(hData.changed),length(hData.deleted), outputfile);
-             updateStatus(handles,msg);
-             set(hNId,'UserData',hNData);
-             %Reset deleted and changed
-             hData.i = 1;
-             hData.deleted=[];
-             hData.changed=[];
-             set(hId,'UserData',hData);
-             
-             close(source.Parent.Parent); %close figure
-        case 'No'
-            a = 0;
-    end
-    
-function editAnalysisfiles1_Callback(hObject, eventdata, handles)
-% hObject    handle to editAnalysisfiles1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of editAnalysisfiles1 as text
-%        str2double(get(hObject,'String')) returns contents of editAnalysisfiles1 as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function editAnalysisfiles1_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to editAnalysisfiles1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
 
 
 function editTolerance_Callback(hObject, eventdata, handles)
@@ -1512,82 +619,11 @@ function cbShowCentroid_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of cbShowCentroid
-
-
-% --- Executes on button press in checkboxEnpassant.
-function checkboxEnpassant_Callback(hObject, eventdata, handles)
-% hObject    handle to checkboxEnpassant (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of checkboxEnpassant
-
-
-% --- Executes on button press in checkboxEndpoint.
-function checkboxEndpoint_Callback(hObject, eventdata, handles)
-% hObject    handle to checkboxEndpoint (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of checkboxEndpoint
-
-
-% --- Executes on button press in checkboxIntersection.
-function checkboxIntersection_Callback(hObject, eventdata, handles)
-% hObject    handle to checkboxIntersection (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of checkboxIntersection
-
-
-
-
-function editCell1_Callback(hObject, eventdata, handles)
-% hObject    handle to editCell1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of editCell1 as text
-%        str2double(get(hObject,'String')) returns contents of editCell1 as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function editCell1_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to editCell1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function editCell2_Callback(hObject, eventdata, handles)
-% hObject    handle to editCell2 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of editCell2 as text
-%        str2double(get(hObject,'String')) returns contents of editCell2 as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function editCell2_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to editCell2 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-            
-
+nH = findobj('Tag', 'menu_File_loadimage');
+N = nH.UserData.analyser;
+CentroidX = N.soma.centroid(1);
+CentroidY = N.soma.centroid(2);
+plotCentroid(CentroidX, CentroidY);
 
 
 
@@ -1648,29 +684,6 @@ function edit10_Callback(hObject, eventdata, handles)
 
 % --- Executes during object creation, after setting all properties.
 function edit10_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to editScale (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-function editFit_Callback(hObject, eventdata, handles)
-% hObject    handle to editScale (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of editScale as text
-%        str2double(get(hObject,'String')) returns contents of editScale as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function editFit_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to editScale (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
@@ -1846,7 +859,7 @@ fileTypes = {  '*.csv', 'CSV files' };
 configfile = fullfile(imagePath,imageFile);
 if (exist(configfile, 'file') == 2)
     M = readtable(configfile);
-    loadConfig(M,handles);
+    loadConfig(M,getProgramtype,0);
     msgbox('Config file loaded')
 else
     msgbox('Unable to load config file')
@@ -1967,10 +980,7 @@ function chkCentre_Callback(hObject, eventdata, handles)
         CentroidY = str2double(get(hCY,'String'));
     end
     
-    gca
-    hold on
-    p1 = plot(CentroidX, CentroidY,'color', 'b',...
-                'marker','x','linestyle','none','LineWidth', 2);
+    plotCentroid(CentroidX, CentroidY);
     
     dcm_obj = datacursormode()
     set(dcm_obj,'DisplayStyle','datatip',...
@@ -1991,28 +1001,30 @@ function chkCentre_Callback(hObject, eventdata, handles)
     N.soma.centroid = [pos(1) pos(2)]
     
     delete(p1);
-    plot(N.soma.centroid(:,1), N.soma.centroid(:,2),'color', 'r',...
-            'marker','+','linestyle','none','LineWidth', 2);
+    p1 = plotCentroid(N.soma.centroid(:,1), N.soma.centroid(:,2));
     
     %save back
     nH.UserData.analyser = N;
+    set(nH, 'UserData', nH.UserData);
     
-    
+ 
 
 
 % --- Executes on slider movement.
-function sliderStart_Callback(hObject, eventdata, handles)
-% hObject    handle to sliderStart (see GCBO)
+function sliderMidline_Callback(hObject, eventdata, handles)
+% hObject    handle to sliderMidline (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
+nH = findobj('Tag', 'editMidline');
+set(nH, 'String', get(hObject,'Value'));
 
 % --- Executes during object creation, after setting all properties.
-function sliderStart_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to sliderStart (see GCBO)
+function sliderMidline_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to sliderMidline (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -2023,22 +1035,71 @@ end
 
 
 % --- Executes on slider movement.
-function sliderEnd_Callback(hObject, eventdata, handles)
-% hObject    handle to sliderEnd (see GCBO)
+function sliderLength_Callback(hObject, eventdata, handles)
+% hObject    handle to sliderLength (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
+nH = findobj('Tag', 'editLength');
+set(nH, 'String', get(hObject,'Value'));
 
 % --- Executes during object creation, after setting all properties.
-function sliderEnd_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to sliderEnd (see GCBO)
+function sliderLength_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to sliderLength (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
 % Hint: slider controls usually have a light gray background.
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+
+
+function editMidline_Callback(hObject, eventdata, handles)
+% hObject    handle to editMidline (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editMidline as text
+%        str2double(get(hObject,'String')) returns contents of editMidline as a double
+nH = findobj('Tag', 'sliderMidline');
+set(nH, 'Value', str2double(get(hObject,'String')));
+
+% --- Executes during object creation, after setting all properties.
+function editMidline_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editMidline (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function editLength_Callback(hObject, eventdata, handles)
+% hObject    handle to editLength (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editLength as text
+%        str2double(get(hObject,'String')) returns contents of editLength as a double
+nH = findobj('Tag', 'sliderLength');
+set(nH, 'Value', str2double(get(hObject,'String')));
+
+% --- Executes during object creation, after setting all properties.
+function editLength_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editLength (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end
