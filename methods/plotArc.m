@@ -14,12 +14,15 @@ a = m - l/2;
 b = m + l/2;
 t = linspace(a,b);
 x = r*cos(t) + cx;
-y = r*sin(t) + cy;
+y = r*sin(-t) + cy;
 x = [x cx x(1)];
 y = [y cy y(1)];
 P = fill(x,y,'g');
-axis([cx-r-1 cx+r+1 cy-r-1 cy+r+1]) 
+axis([cx-r-1 cx+r+1 cy-r-1 cy+r+1])
 axis square;
+%Add text label
+txt1 = ['\leftarrow ',num2str(midline),'^{\circ}'];
+text(r*cos(m) + cx,r*sin(-m) + cy,txt1,'color','w','LineWidth', 2)
 if ~nargout
     clear P
 end

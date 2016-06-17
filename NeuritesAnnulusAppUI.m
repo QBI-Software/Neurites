@@ -24,7 +24,7 @@ function varargout = NeuritesAnnulusAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAnnulusAppUI
 
-% Last Modified by GUIDE v2.5 15-Jun-2016 15:05:32
+% Last Modified by GUIDE v2.5 16-Jun-2016 14:49:24
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -255,121 +255,130 @@ function Menu_File_loadcsv_Callback(hObject, eventdata, handles)
     end
 
 
-% --- Executes on button press in btnRegister.
-function btnRegister_Callback(hObject, eventdata, handles)
-% hObject    handle to btnRegister (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h = findobj('Tag','menu_File_loadimage');
-%data = h.UserData;
-data = get(h,'UserData');
-I = data.img;
-N = data.analyser;
-%csvdata = handles.btnAnalysisFiles.UserData;
-hCSV = findobj('Tag','Menu_File_loadcsv');
-csvdata = get(hCSV,'UserData');
-
-if ( ~isempty(csvdata))
-    csv1 = fullfile(csvdata.csvPath, csvdata.csvFile);
-    %Read values
-    hScale = findobj('Tag','editScale');
-    hSX = findobj('Tag','editShiftx');
-    hSY = findobj('Tag','editShifty');
-    
-    if isempty(get(hScale,'String'))
-        %load config data if empty
-        configfile =fullfile(csvdata.csvPath, 'neurites_annulus_config.csv');
-        if (exist(configfile, 'file') == 2)
-            M = readtable(configfile);
-            N.soma.centroid = [M.CentroidX M.CentroidY]; %update centroid
-            data.analyser = N;
-            set(h,'UserData',data);
-        else
-            M = estimateOverlay(handles,I,csv1);
-            if (exists(data.analyser))
-                M.CentroidX = N.soma.centroid(1);
-                M.CentroidY = N.soma.centroid(2);
-            end
-        end
-        loadConfig(M,getProgramtype,0);
-        
-        hscale = M.Scale;
-        shiftx = M.Shiftx;
-        shifty = M.Shifty;
-       
-    else
-        hscale = str2double(get(hScale,'String'));
-        shiftx = str2double(get(hSX,'String'));
-        shifty = str2double(get(hSY,'String'));
-        
-    end  
-    
-    T1 = readtable(csv1);
-    %plot
-    axes(handles.axes1); 
-    hIm = imshow(I);
-    %imoverview(hIm)
-    hold on;
-    XC1 = [];
-    YC1 = [];
-    for (i=1: height(T1))
-        XC1(end+1) = (T1.StartX(i) * hscale) + shiftx;
-        YC1(end+1) = (T1.StartY(i) * hscale) + shifty;
-        
-        if(strcmp(T1.PointType(i),'EP') > 0)
-          plot(XC1,-YC1,'color','c','LineStyle','-','LineWidth', 2);  
-          XC1 = [];
-          YC1 = [];  
-        end
-        
-    end
-    hold off;
-end
-       
-
-    % --- Executes on button press in pushbutton9.
-function saveConfig_Callback(hObject, eventdata, handles)
-% hObject    handle to pushbutton9 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-    %Results table
-    hScale = findobj('Tag','editScale');
-    hSX = findobj('Tag','editShiftx');
-    hSY = findobj('Tag','editShifty');
-    hFit = findobj('Tag','editFit');
-    hCx = findobj('Tag','editCentroidX');
-    hCy = findobj('Tag','editCentroidY');
-    hOD = findobj('Tag','editOD');
-    hID = findobj('Tag','editID');
-    Scale = str2double(get(hScale,'String'));
-    Fit = str2double(get(hFit,'String'));
-    Shiftx = str2double(get(hSX,'String'));
-    Shifty = str2double(get(hSY,'String'));
-    CentroidX = str2double(get(hCx,'String'));
-    CentroidY = str2double(get(hCy,'String'));
-    AnnulusOD = str2double(get(hOD,'String'));
-    AnnulusID = str2double(get(hID,'String'));
-
-    T = table(Scale, Fit, Shiftx, Shifty, CentroidX, CentroidY, AnnulusOD, AnnulusID);
-    %save to file
-    %csvdata = handles.btnAnalysisFiles.UserData;
-    hCSV = findobj('Tag','Menu_File_loadcsv');
-    csvdata = get(hCSV,'UserData');
-    outputfile = 'neurites_annulus_config.csv';
-    if ( ~isempty(csvdata))
-        outputfile =fullfile(csvdata.csvPath, outputfile);
-    end
-    writetable(T,outputfile);
-    status = sprintf('Config file saved:%s',outputfile);
-    updateStatus(handles,status);
-    
-
-
-
-    
-        
 
 % --------------------------------------------------------------------
+function Menu_SaveImage_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_SaveImage (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+hB = findobj('Tag', 'menu_File_loadimage');
+pathname = hB.UserData.imagePath;
+if (isempty(pathname))
+    pathname = '.';
+end
+saveas(handles.figure1, fullfile(pathname, 'neurites_img.png')); 
+
+
+
+
+% --------------------------------------------------------------------
+function Menu_LoadMask_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_LoadMask (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
+hB = findobj('Tag', 'menu_File_loadimage');
+hfdata = get(hB,'UserData');
+imagePath = hfdata.imagePath;
+[imageFile, imagePath, ~] = ...
+  uigetfile(fileTypes, ...
+    'Select mask image', ...
+    'MultiSelect', 'off',imagePath);
+inputPath = fullfile(imagePath,imageFile);
+I = imread(inputPath);
+updateStatus(handles,'Mask loaded from file');
+hfdata.roi_I=I;
+
+%colors=['b' 'g' 'r' 'c' 'm' 'y'];
+[B,L,N,A] = bwboundaries(I);
+%display roi
+axes(handles.axes1);
+hold on;
+for k=1:length(B),
+  boundary = B{k};
+  xi = boundary(:,2);
+  yi = boundary(:,1);
+  plot(xi,yi,'b--','LineWidth',1);
+end
+
+hold off;
+hfdata.roi_xy = B
+%save ROI as standard file (overwrites)
+roifile = fullfile(hfdata.imagePath, 'neurites_annulus.tif');
+if ~exist(roifile, 'file') == 2
+    imwrite(I, roifile);
+    hfdata.roifile = roifile;
+end
+%generate masked image
+N = hfdata.analyser;
+N = N.loadMask(I);
+%imshow(N.maskedI);
+hfdata.analyser = N;
+set(hB,'UserData',hfdata);
+
+% --------------------------------------------------------------------
+function Menu_LoadConfig_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_LoadConfig (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+fileTypes = {  '*.csv', 'CSV files' };
+hB = findobj('Tag', 'menu_File_loadimage');
+hfdata = get(hB,'UserData');
+imagePath = hfdata.imagePath;
+[imageFile, imagePath, ~] = ...
+  uigetfile(fileTypes, ...
+    'Select neurites config file', ...
+    'MultiSelect', 'off',imagePath);
+configfile = fullfile(imagePath,imageFile);
+if (exist(configfile, 'file') == 2)
+    M = readtable(configfile);
+    loadConfig(M,getProgramtype,0);
+    %set centroid
+    N = hfdata.analyser;
+    N.soma.centroid = [M.CentroidX M.CentroidY];
+    hfdata.analyser = N;
+    set(hB,'UserData',hfdata);
+    msgbox('Config file loaded')
+else
+    msgbox('Unable to load config file')
+end
+
+% --------------------------------------------------------------------
+function Menu_About_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_About (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+Message = {'QBI Williams Neurites Annulus Analyser' ...
+    'Description: Developed for the calculation of neurites area'...
+    'under a stimulus region.' ...
+    'Developed by Liz Cooper-Williams (e.cooperwilliams@uq.edu.au)'...
+    '(c) Copyright QBI 2016' ...
+    'Version: 1.x (Jun 2016)' ...
+    'Source: https://github.com/QBI-Software/Neurites'};
+msgbox(Message,'About')
+
+% --------------------------------------------------------------------
+function Menu_Help_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_Help (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+Message = {'Instructions for use' ...
+    '1. Load image(tif or jpg)' ...
+    '2. Load corresponding CSV data file' ...
+    '3. Configure CSV overlay with Register CSV - adjust configuration values then Save config' ...
+    '4. Add Annulus region (manual or auto)' ...
+    '     a. Draw ROI with ROI tool and double click in region to save' ...
+    '     b. Load from mask with File menu' ...
+    '     c. Automatically apply with OD and ID from centroid'...
+    '5. Run analysis' ...
+    '6. Review results graphically - can adjust paths or delete synapses' ...
+    '7. View output data in table which is also output to a csv file'};
+h = msgbox(Message,'Instructions','Help');
+
+
+       
+
+% ---------------------RADIO BUTTONS--------------------------
 
 % --- Executes on button press in radioZoom.
 function radioZoom_Callback(hObject, eventdata, handles)
@@ -384,16 +393,6 @@ else
     zoom off
 end
 
-
-% --- Executes on button press in btnImtool.
-function btnImtool_Callback(hObject, eventdata, handles)
-% hObject    handle to btnImtool (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-h = findobj('Tag','menu_File_loadimage');
-%data = h.UserData;
-data = get(h,'UserData');
-imtool(data.img)
 
 
 % --- Executes on button press in radioPan.
@@ -481,6 +480,14 @@ else
     %nothing
 end
 
+% --- Executes on button press in radioAnnNone.
+function radioAnnNone_Callback(hObject, eventdata, handles)
+% hObject    handle to radioAnnNone (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of radioAnnNone
+
 % --- Executes on button press in radioDraw.
 function radioDraw_Callback(hObject, eventdata, handles)
 % hObject    handle to radioDraw (see GCBO)
@@ -489,8 +496,127 @@ function radioDraw_Callback(hObject, eventdata, handles)
 
 % Hint: get(hObject,'Value') returns toggle state of radioDraw
 
-      
+% ---------------------PUSH BUTTONS--------------------------
+
+% --- Executes on button press in pushbutton9.
+function saveConfig_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton9 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    %Results table
+    hScale = findobj('Tag','editScale');
+    hSX = findobj('Tag','editShiftx');
+    hSY = findobj('Tag','editShifty');
+    hFit = findobj('Tag','editFit');
+    hCx = findobj('Tag','editCentroidX');
+    hCy = findobj('Tag','editCentroidY');
+    hOD = findobj('Tag','editOD');
+    hID = findobj('Tag','editID');
+    Scale = str2double(get(hScale,'String'));
+    Fit = str2double(get(hFit,'String'));
+    Shiftx = str2double(get(hSX,'String'));
+    Shifty = str2double(get(hSY,'String'));
+    CentroidX = str2double(get(hCx,'String'));
+    CentroidY = str2double(get(hCy,'String'));
+    AnnulusOD = str2double(get(hOD,'String'));
+    AnnulusID = str2double(get(hID,'String'));
+
+    T = table(Scale, Fit, Shiftx, Shifty, CentroidX, CentroidY, AnnulusOD, AnnulusID);
+    %save to file
+    %csvdata = handles.btnAnalysisFiles.UserData;
+    hCSV = findobj('Tag','Menu_File_loadcsv');
+    csvdata = get(hCSV,'UserData');
+    outputfile = 'neurites_annulus_config.csv';
+    if ( ~isempty(csvdata))
+        outputfile =fullfile(csvdata.csvPath, outputfile);
+    end
+    writetable(T,outputfile);
+    status = sprintf('Config file saved:%s',outputfile);
+    updateStatus(handles,status);
+    
+    
+% --- Executes on button press in btnImtool.
+function btnImtool_Callback(hObject, eventdata, handles)
+% hObject    handle to btnImtool (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+h = findobj('Tag','menu_File_loadimage');
+%data = h.UserData;
+data = get(h,'UserData');
+imtool(data.img)
+ 
+
+ % --- Executes on button press in btnRegister.
+function btnRegister_Callback(hObject, eventdata, handles)
+% hObject    handle to btnRegister (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+h = findobj('Tag','menu_File_loadimage');
+%data = h.UserData;
+data = get(h,'UserData');
+I = data.img;
+N = data.analyser;
+%csvdata = handles.btnAnalysisFiles.UserData;
+hCSV = findobj('Tag','Menu_File_loadcsv');
+csvdata = get(hCSV,'UserData');
+
+if ( ~isempty(csvdata))
+    csv1 = fullfile(csvdata.csvPath, csvdata.csvFile);
+    %Read values
+    hScale = findobj('Tag','editScale');
+    hSX = findobj('Tag','editShiftx');
+    hSY = findobj('Tag','editShifty');
+    
+    if isempty(get(hScale,'String'))
+        %load config data if empty
+        configfile =fullfile(csvdata.csvPath, 'neurites_annulus_config.csv');
+        if (exist(configfile, 'file') == 2)
+            M = readtable(configfile);
+            N.soma.centroid = [M.CentroidX M.CentroidY]; %update centroid
+            data.analyser = N;
+            set(h,'UserData',data);
+        else
+            M = estimateOverlay(handles,I,csv1);
+            if (exists(data.analyser))
+                M.CentroidX = N.soma.centroid(1);
+                M.CentroidY = N.soma.centroid(2);
+            end
+        end
+        loadConfig(M,getProgramtype,0);
+        
+        hscale = M.Scale;
+        shiftx = M.Shiftx;
+        shifty = M.Shifty;
        
+    else
+        hscale = str2double(get(hScale,'String'));
+        shiftx = str2double(get(hSX,'String'));
+        shifty = str2double(get(hSY,'String'));
+        
+    end  
+    
+    T1 = readtable(csv1);
+    %plot
+    axes(handles.axes1); 
+    hIm = imshow(I);
+    %imoverview(hIm)
+    hold on;
+    XC1 = [];
+    YC1 = [];
+    for (i=1: height(T1))
+        XC1(end+1) = (T1.StartX(i) * hscale) + shiftx;
+        YC1(end+1) = (T1.StartY(i) * hscale) + shifty;
+        
+        if(strcmp(T1.PointType(i),'EP') > 0)
+          plot(XC1,-YC1,'color','c','LineStyle','-','LineWidth', 2);  
+          XC1 = [];
+          YC1 = [];  
+        end
+        
+    end
+    hold off;
+end
+             
 
 % --- Executes on button press in btnAnnulus.
 function btnAnnulus_Callback(hObject, eventdata, handles)
@@ -527,13 +653,6 @@ if (get(hObject,'Value') > 0)
     end
 end
 
-% --- Executes on button press in radioAnnNone.
-function radioAnnNone_Callback(hObject, eventdata, handles)
-% hObject    handle to radioAnnNone (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of radioAnnNone
 
 % --- Executes on button press in btnAnalysis.
 function btnAnalysis_Callback(hObject, eventdata, handles)
@@ -547,16 +666,115 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         Scale = str2double(get(hScale,'String'));
         hOD = findobj('Tag','editOD');
         od = str2double(get(hOD,'String'));
-        [T,colnames] = analyseAnnulus(Scale, N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2,1);
+        hAL = findobj('Tag','editLength');
+        arclength = str2double(get(hAL,'String'));
+        hML = findobj('Tag','editMidline');
+        midline = str2double(get(hML,'String'));
+        hSr = findobj('Tag','chkSingleRun');
+        
+        if (get(hSr,'Value') > 0)
+            single = 1;
+            
+        else
+            single = 0;
+        end
+        
+        if (isempty(arclength)||isnan(arclength))
+            arclength=45;
+        end
+        if (isempty(midline)||isnan(midline))
+            midline=45;
+        end
+        
+        [T,colnames] = analyseAnnulus(Scale, N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, 1,single);
+        
+        
         pathname = data.imagePath;
         %save to file
-       % outputfile = fullfile(pathname, 'neurites_annulus_data.csv');
-       % saveDataFile(outputfile, colnames,T);
+        outputfile = fullfile(pathname, 'neurites_annulus_data.csv');
+        if single
+            %append to table data
+            T1 = readtable(outputfile);
+            if exist(outputfile, 'file') == 2
+                Tnew = [T1;T];
+            else
+                Tnew = T;
+            end
+            writetable(Tnew,outputfile);
+        else
+            writetable(T,outputfile);
+        end
+        status = sprintf('Analysis complete. Table written to %s',outputfile);
+        updateStatus(handles,status);
     else
         msgbox('Create Annulus mask first');
     end
     
+% --- Executes on button press in chkSingleRun.
+function chkSingleRun_Callback(hObject, eventdata, handles)
+% hObject    handle to chkSingleRun (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 
+
+% --- Executes on button press in btnChangeCentroid.
+function btnChangeCentroid_Callback(hObject, eventdata, handles)
+% hObject    handle to btnChangeCentroid (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+    nH = findobj('Tag', 'menu_File_loadimage');
+    N = nH.UserData.analyser;
+    %Show coordinates
+    hCX = findobj('Tag','editCentroidX');
+    hCY = findobj('Tag','editCentroidY');
+    if (isempty(get(hCX,'String')) || isempty(get(hCY,'String')))
+        CentroidX = N.soma.centroid(1);
+        CentroidY = N.soma.centroid(2);
+    else
+        CentroidX = str2double(get(hCX,'String'));
+        CentroidY = str2double(get(hCY,'String'));
+    end
+    
+    plotCentroid(CentroidX, CentroidY);
+    
+    dcm_obj = datacursormode()
+    set(dcm_obj,'DisplayStyle','datatip',...
+    'SnapToDataVertex','off','Enable','on')
+    status = sprintf('Click on figure at required centroid, then press Return.');
+    msgbox(status)
+    
+    % Wait while the user does this.
+    pause 
+
+    c_info = getCursorInfo(dcm_obj);
+    pos = c_info.Position
+    datacursormode off
+    set(hCX, 'String',num2str(pos(1)));
+	set(hCY, 'String',num2str(pos(2)));
+    
+    N.soma.centroid = [pos(1) pos(2)]
+    
+    %delete(p1);
+    p1 = plotCentroid(N.soma.centroid(:,1), N.soma.centroid(:,2));
+    
+    %save back
+    nH.UserData.analyser = N;
+    set(nH, 'UserData', nH.UserData);
+
+    
+% --- Executes on button press in btnCentroid.
+function btnCentroid_Callback(hObject, eventdata, handles)
+% hObject    handle to btnCentroid (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of btnCentroid
+nH = findobj('Tag', 'menu_File_loadimage');
+N = nH.UserData.analyser;
+CentroidX = N.soma.centroid(1);
+CentroidY = N.soma.centroid(2);
+plotCentroid(CentroidX, CentroidY); 
 
 
 function saveDataFile(outputfile,colnames,tabledata)
@@ -565,7 +783,7 @@ function saveDataFile(outputfile,colnames,tabledata)
     T
     writetable(T,outputfile);
     
-
+% ---------------------TEXT FIELDS--------------------------
 
 function editTolerance_Callback(hObject, eventdata, handles)
 % hObject    handle to editTolerance (see GCBO)
@@ -610,20 +828,6 @@ function editMinlength_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
-
-% --- Executes on button press in cbShowCentroid.
-function cbShowCentroid_Callback(hObject, eventdata, handles)
-% hObject    handle to cbShowCentroid (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of cbShowCentroid
-nH = findobj('Tag', 'menu_File_loadimage');
-N = nH.UserData.analyser;
-CentroidX = N.soma.centroid(1);
-CentroidY = N.soma.centroid(2);
-plotCentroid(CentroidX, CentroidY);
 
 
 
@@ -741,132 +945,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --------------------------------------------------------------------
-function Menu_About_Callback(hObject, eventdata, handles)
-% hObject    handle to Menu_About (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-Message = {'QBI Williams Neurites Annulus Analyser' ...
-    'Description: Developed for the calculation of neurites area'...
-    'under a stimulus region.' ...
-    'Developed by Liz Cooper-Williams (e.cooperwilliams@uq.edu.au)'...
-    '(c) Copyright QBI 2016' ...
-    'Version: 1.x (Jun 2016)' ...
-    'Source: https://github.com/QBI-Software/Neurites'};
-msgbox(Message,'About')
-
-% --------------------------------------------------------------------
-function Menu_Help_Callback(hObject, eventdata, handles)
-% hObject    handle to Menu_Help (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-Message = {'Instructions for use' ...
-    '1. Load image(tif or jpg)' ...
-    '2. Load corresponding CSV data file' ...
-    '3. Configure CSV overlay with Register CSV - adjust configuration values then Save config' ...
-    '4. Add Annulus region (manual or auto)' ...
-    '     a. Draw ROI with ROI tool and double click in region to save' ...
-    '     b. Load from mask with File menu' ...
-    '     c. Automatically apply with OD and ID from centroid'...
-    '5. Run analysis' ...
-    '6. Review results graphically - can adjust paths or delete synapses' ...
-    '7. View output data in table which is also output to a csv file'};
-h = msgbox(Message,'Instructions','Help');
-
-
-% --- Executes when user attempts to close figure1.
-function figure1_CloseRequestFcn(hObject, eventdata, handles)
-% hObject    handle to figure1 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: delete(hObject) closes the figure
-delete(hObject);
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-% --------------------------------------------------------------------
-function Menu_SaveImage_Callback(hObject, eventdata, handles)
-% hObject    handle to Menu_SaveImage (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-hB = findobj('Tag', 'menu_File_loadimage');
-pathname = hB.UserData.csvPath;
-if (isempty(pathname))
-    pathname = '.';
-end
-saveas(handles.figure1, fullfile(pathname, 'neurites_img.png')); 
-
-
-
-
-% --------------------------------------------------------------------
-function Menu_LoadMask_Callback(hObject, eventdata, handles)
-% hObject    handle to Menu_LoadMask (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
-hB = findobj('Tag', 'menu_File_loadimage');
-hfdata = get(hB,'UserData');
-imagePath = hfdata.imagePath;
-[imageFile, imagePath, filterIndex] = ...
-  uigetfile(fileTypes, ...
-    'Select mask image', ...
-    'MultiSelect', 'off');
-inputPath = fullfile(imagePath,imageFile);
-I = imread(inputPath);
-updateStatus(handles,'Mask loaded from file');
-hfdata.roi_I=I;
-
-%colors=['b' 'g' 'r' 'c' 'm' 'y'];
-[B,L,N,A] = bwboundaries(I);
-%display roi
-axes(handles.axes1);
-hold on;
-for k=1:length(B),
-  boundary = B{k};
-  xi = boundary(:,2);
-  yi = boundary(:,1);
-  plot(xi,yi,'b--','LineWidth',1);
-end
-
-hold off;
-hfdata.roi_xy = B
-%save ROI as standard file (overwrites)
-roifile = fullfile(hfdata.imagePath, 'neurites_annulus.tif');
-if ~exist(roifile, 'file') == 2
-    imwrite(I, roifile);
-    hfdata.roifile = roifile;
-end
-%generate masked image
-N = hfdata.analyser;
-N = N.loadMask(I);
-%imshow(N.maskedI);
-hfdata.analyser = N;
-set(hB,'UserData',hfdata);
-
-% --------------------------------------------------------------------
-function Menu_LoadConfig_Callback(hObject, eventdata, handles)
-% hObject    handle to Menu_LoadConfig (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-fileTypes = {  '*.csv', 'CSV files' };
-[imageFile, imagePath, filterIndex] = ...
-  uigetfile(fileTypes, ...
-    'Select neurites config file', ...
-    'MultiSelect', 'off');
-configfile = fullfile(imagePath,imageFile);
-if (exist(configfile, 'file') == 2)
-    M = readtable(configfile);
-    loadConfig(M,getProgramtype,0);
-    msgbox('Config file loaded')
-else
-    msgbox('Unable to load config file')
-end
-    
-
-
 
 function editOD_Callback(hObject, eventdata, handles)
 % hObject    handle to editOD (see GCBO)
@@ -913,9 +991,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-
-
-
 function editCentroidX_Callback(hObject, eventdata, handles)
 % hObject    handle to editCentroidX (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -960,54 +1035,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-% --- Executes on button press in chkCentre.
-function chkCentre_Callback(hObject, eventdata, handles)
-% hObject    handle to chkCentre (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-    nH = findobj('Tag', 'menu_File_loadimage');
-    N = nH.UserData.analyser;
-    %Show coordinates
-    hCX = findobj('Tag','editCentroidX');
-    hCY = findobj('Tag','editCentroidY');
-    if (isempty(get(hCX,'String')) || isempty(get(hCY,'String')))
-        CentroidX = N.soma.centroid(1);
-        CentroidY = N.soma.centroid(2);
-    else
-        CentroidX = str2double(get(hCX,'String'));
-        CentroidY = str2double(get(hCY,'String'));
-    end
-    
-    plotCentroid(CentroidX, CentroidY);
-    
-    dcm_obj = datacursormode()
-    set(dcm_obj,'DisplayStyle','datatip',...
-    'SnapToDataVertex','off','Enable','on')
-    status = sprintf('Click on figure at required centroid, then press Return.');
-    updateStatus(handles,status);
-    disp(status)
-    
-    % Wait while the user does this.
-    pause 
-
-    c_info = getCursorInfo(dcm_obj);
-    pos = c_info.Position
-    datacursormode off
-    set(hCX, 'String',num2str(pos(1)));
-	set(hCY, 'String',num2str(pos(2)));
-    
-    N.soma.centroid = [pos(1) pos(2)]
-    
-    delete(p1);
-    p1 = plotCentroid(N.soma.centroid(:,1), N.soma.centroid(:,2));
-    
-    %save back
-    nH.UserData.analyser = N;
-    set(nH, 'UserData', nH.UserData);
-    
- 
 
 
 % --- Executes on slider movement.
@@ -1103,3 +1130,30 @@ function editLength_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes when user attempts to close figure1.
+function figure1_CloseRequestFcn(hObject, eventdata, handles)
+% hObject    handle to figure1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: delete(hObject) closes the figure
+delete(hObject);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+% --- Executes on button press in btnReloadImage.
+function btnReloadImage_Callback(hObject, eventdata, handles)
+% hObject    handle to btnReloadImage (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+axes(handles.axes1);
+hfiles = findobj('Tag','menu_File_loadimage');
+hfdata = get(hfiles,'UserData');
+I = hfdata.img;
+hold off
+imshow(I);
