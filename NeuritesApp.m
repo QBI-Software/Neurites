@@ -80,8 +80,27 @@ function NeuritesApp()
   format compact
   feature('jit',0)
   feature('accel',0)
-  %Launch UI
-  NeuritesAppUI()
+  %add paths
+  addpath(pwd)
+  addpath('./methods')
+  % Select application to run
+  choice = questdlg('Select Application to run', ...
+	'Neurites analysis app', ...
+	'Synapse analysis','Annulus analysis','Cancel','Synapse analysis');
+    % Handle response
+    switch choice
+        case 'Synapse analysis'
+            disp([choice ' loading.'])
+            %Launch UI
+            NeuritesAppUI()
+        case 'Annulus analysis'
+            disp([choice ' loading.'])
+            %Launch UI
+            NeuritesAnnulusAppUI()
+        case 'Cancel'
+            disp('No app selected.')
+    end
+  
   
  
 
