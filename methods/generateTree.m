@@ -6,7 +6,7 @@ function tree = generateTree( csvdata )
 % 3. List branches in order of order and location
 CSV = readtable(csvdata);
 t = unique(CSV.Tree);
-u = unique(CSV.Order);
+u = unique(CSV.Order); %COUNT NUMBER ep AND bp
 csvidx = find(CSV.Tree ==1); %indices of matching rows
 branches = {}; %cell(t,u);
 blength = 0;
@@ -27,11 +27,15 @@ end
 %load tree vars
 branchdata = [];%[1 2;3 4];
 branchdistances = [];% [290.7;125;324.2;139.7;0]
-for j=1:length(u)
-    branchdata = cat(2, branchdata,[j j+1]);
-    j = j+1;
+for j=[1:2:length(u)]
+    branchdata = cat(1, branchdata,[j j+1])
+    
 end
 
+for j=[length(branches):-1:1]
+    branchdistances= cat(1, branchdistances, sort(cell2mat(branches(j)),'descend'))
+end
+    
 
 tree = phytree(branchdata,branchdistances)
 names = get(tree,'LeafNames')
