@@ -17,11 +17,15 @@ for i=1:length(csvidx)
     btype = CSV.PointType(i);
     blength = blength + CSV.Length__m_(i);
     if (strcmp(btype, 'CP')==0)
-        
-        if (length(branches) >= order)
-            branches{order} = cat(1,branches{order},blength);
+        if (strcmp(btype, 'BP')>0)
+            stype = 1; % BP
         else
-            branches{order} = [blength];
+            stype = 2; % EP
+        end
+        if (length(branches) >= order)
+            branches{order}{stype} = cat(1,branches{order}{stype},blength);
+        else
+            branches{order}{stype} = [blength];
         end
         blength = 0;
         bcount = bcount+1;
@@ -35,9 +39,35 @@ branchdistances = [];% [290.7;125;324.2;139.7;0]
 for j=[1:2:bcount-1]
     branchdata = cat(1, branchdata,[j j+1]);    
 end
-
+num=0;
+tformat = '';
 for j=[length(branches):-1:1]
-    branchdistances= cat(1, branchdistances, cell2mat(branches(j)));
+    eps = branches{1,j}{2};
+    bps = branches{1,j}{1};
+    branchdistances= cat(1, branchdistances, eps);
+    
+    if(~isempty(tformat) && ~isempty(bps))
+        for k=1:length(bps)
+            tformat = sprintf('%s:%0.02f,', tformat,bps(k))
+            epformat=[];
+            for i=1:length(eps)
+                num = num + 1;
+                epformat{i}=sprintf('%d:%0.02f',num, eps(i));
+            end
+            tformat = sprintf('(%s%s)',tformat,strjoin(epformat,','))
+        end
+    else
+        epformat=[];
+        
+        for i=1:length(eps)
+            num = num + 1;
+            epformat{i}=sprintf('%d:%0.02f',num, eps(i));%TODO Detect pairs here
+        end
+        
+    end
+    
+    
+    
 end
 %Check lengths
 sprintf('Num branches: %d',length(branches)) 
