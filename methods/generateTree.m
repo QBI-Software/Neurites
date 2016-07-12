@@ -10,18 +10,27 @@ u = unique(CSV.Order); %COUNT NUMBER ep AND bp
 csvidx = find(CSV.Tree ==1); %indices of matching rows
 branches = {}; %cell(t,u);
 blength = 0;
-bcount = 0;
+bcount = 1;
 atypes=[];
+n0 = []; %parentnode
 for i=1:length(csvidx)
     order = CSV.Order(i);
-    btype = CSV.PointType(i);
+    btype = char(CSV.PointType(i));
     blength = blength + CSV.Length__m_(i);
     if (strcmp(btype, 'CP')==0)
+        n = NeuritesNode(bcount,blength,btype,order)
+        if (~isempty(n0) && isa(n0,'NeuritesNode'))
+            [n0,n] = n0.addChildNode(n);
+           
+        else
+            n0 = n; %set root
+        end
         
         if (length(branches) >= order)
-            branches{order} = cat(1,branches{order},blength);
+            branches{order}(1,1) = n0; %replace
+            branches{order} = cat(1,branches{order},n);
         else
-            branches{order} = [blength];
+            branches{order} = [n0];
         end
         blength = 0;
         bcount = bcount+1;
