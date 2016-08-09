@@ -647,6 +647,9 @@ if (get(hObject,'Value') > 0)
         roifile = fullfile(data.imagePath, 'neurites_annulus.tif');
         imwrite(mask, roifile);
         status = sprintf('Annulus mask created: %s.', roifile);
+        %Update analyser data
+        data.analyser = N;
+        set(h,'UserData',data);
         updateStatus(handles,status);
         disp(status)
         

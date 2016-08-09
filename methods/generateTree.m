@@ -18,32 +18,31 @@ for i=1:length(csvidx)
     btype = char(CSV.PointType(i));
     blength = blength + CSV.Length__m_(i);
     if (strcmp(btype, 'CP')==0)
-<<<<<<< HEAD
         n = NeuritesNode(bcount,blength,btype,order)
         if (~isempty(n0) && isa(n0,'NeuritesNode'))
-            [n0,n] = n0.addChildNode(n);
+                %%TODO: set root node to parent of this node
+                if (n0.nodelevel ~= n.nodelevel -1)
+                    n0 = findParent(branches, n.nodelevel-1);
+                end
+                [n0,n] = n0.addChildNode(n);
+                branches{n0.nodelevel}(1,1) = n0; %replace
+                if length(branches) >= order
+                    branches{order} = cat(1,branches{order},n);
+                else
+                    branches{order} = [n];
+                end
            
         else
             n0 = n; %set root
+            branches{n0.nodelevel}(1,1) = n0; %add
         end
         
-        if (length(branches) >= order)
-            branches{order}(1,1) = n0; %replace
-            branches{order} = cat(1,branches{order},n);
-        else
-            branches{order} = [n0];
-=======
-        if (strcmp(btype, 'BP')>0)
-            stype = 1; % BP
-        else
-            stype = 2; % EP
-        end
-        if (length(branches) >= order)
-            branches{order}{stype} = cat(1,branches{order}{stype},blength);
-        else
-            branches{order}{stype} = [blength];
->>>>>>> origin/master
-        end
+%         if (length(branches) >= order)
+%             branches{n0.nodelevel}(1,1) = n0; %replace
+%             branches{order} = cat(1,branches{order},n);
+%         else
+%             branches{n0.nodelevel}(1,1) = n0;
+%         end
         blength = 0;
         bcount = bcount+1;
         
@@ -51,7 +50,9 @@ for i=1:length(csvidx)
         
 end
 %load tree vars
-branchdata = [];%[1 2;3 4];
+% branchdata: contains branch pairs by IDs eg[1 2;3 4];
+% branchdistances: 
+branchdata = [];
 branchdistances = [];% [290.7;125;324.2;139.7;0]
 for j=[1:2:bcount-1]
     branchdata = cat(1, branchdata,[j j+1]);    
@@ -59,9 +60,14 @@ end
 num=0;
 tformat = '';
 for j=[length(branches):-1:1]
-    eps = branches{1,j}{2};
-    bps = branches{1,j}{1};
-    branchdistances= cat(1, branchdistances, eps);
+    %Find end branches - first string
+    for (m=1:length(branches{1,j}):1)
+        N = branches{1,j}(m,1);
+        if (N.isBranchpoint())
+            branchdistances= cat(1, branchdistances, N.branchlength);
+        end
+    end
+    
     
     if(~isempty(tformat) && ~isempty(bps))
         for k=1:length(bps)
@@ -101,3 +107,19 @@ xlabel('Distance from soma (um)')
 
 end
 
+%move this function to class?
+function N = findParent(branches, level)
+   N = 0;
+   %Find end branches - first string
+   for m=1:length(branches{1,level}):1
+        N = branches{1,level}(m,1);
+        if (N.isBranchpoint() && ~N.hasChildNodes())
+            disp('Parent node ')
+            N
+            break;
+        end
+   end
+end
+   
+            
+            
