@@ -1,6 +1,8 @@
 function [Scale, Shiftx, Shifty] = estimateOverlay(handles, I,cell1csv)
 %Estimate parameters for overlay of CSV data onto image
     Img = rgb2gray(I);
+    %Use GPU
+    %Img = gpuArray(Im);
     Tb = readtable(cell1csv);
     
     %CSV data in um
@@ -33,18 +35,9 @@ function [Scale, Shiftx, Shifty] = estimateOverlay(handles, I,cell1csv)
     csvlength = pdist(C1,'euclidean');
     csvlength = csvlength + (0.1*csvlength); %adjust for slightly shorter traces
     %Image coords - 
-    LI = bwlabel(Img);
-    s = regionprops(LI, 'Area', 'BoundingBox','Extrema');
-    i = 1;
-    Area = cat(1,s.Area);
-    if (length(s) > 1)
-        i = find(Area==max(Area));
-    end
-%     S3=s(i).Extrema(1,:);
-%     S4=s(i).Extrema(4,:);
-%     S3=[s(i).BoundingBox(1) s(i).BoundingBox(2)];
-%     S4=[s(i).BoundingBox(1)+s(i).BoundingBox(3)  s(i).BoundingBox(2)+s(i).BoundingBox(4)];
-    Ic = corner(Img,'Harris','SensitivityFactor',0.02);
+    
+    Ic = corner(Img,'Harris','SensitivityFactor',0.2);
+    
     xi = Ic(:,1)==min(Ic(:,1));
     S3 = Ic(xi,:)
     xm = Ic(:,1)==max(Ic(:,1));
@@ -60,21 +53,23 @@ function [Scale, Shiftx, Shifty] = estimateOverlay(handles, I,cell1csv)
     % Find scale
     C2 = cat(1,S3,S4);
     imglength = pdist(C2,'euclidean');
-    Scale = round(imglength/csvlength,1)
+    %Load return data
+    Scale = round(imglength/csvlength,1);
+    Scale = Scale + (Scale/10) %add 10% compensation for tracing - TODO
     S = S1 * Scale;
+    Shiftx = round(S3(1) - S(1),2);
+    Shifty = round(-S3(2) - S(2),2);
+    
+    % TODO Registration - loop until matches
     
     %Plot
     axes(handles.axes1);
     imshow(Img);
     hold on;
-    %plot(S(1),S(2),'color','b','Marker','o','LineWidth', 2);
+    plot(S(1),S(2),'color','b','Marker','o','LineWidth', 2);
     plot(S3(1),S3(2),'color','y','Marker','x','LineWidth', 2);
     plot(S4(1),S4(2),'color','r','Marker','x','LineWidth', 2);
     hold off;
-    %Load data
-    
-    Shiftx = round(S3(1) - S(1),2);
-    Shifty = round(-S3(2) - S(2),2);
-    
+   
 end
 

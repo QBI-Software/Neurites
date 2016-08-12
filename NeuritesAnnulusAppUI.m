@@ -187,15 +187,15 @@ function menu_File_loadimage_Callback(hObject, eventdata, handles)
 		'Select neuron image', ...
 		'MultiSelect', 'off');
     inputPath = fullfile(imagePath,imageFile);
-    h = msgbox('Loading image ....');
+    
     I = imread(inputPath);
-    delete(h);
     %load image in panel
     axes(handles.axes1);
     hSP = get(handles.axes1,'parent');
     api = iptgetapi(hSP);
     api.replaceImage(I);
     % Reset magnification
+    updateStatus(handles,'Loading image ....');
     mag = api.findFitMag()
     api.setMagnification(mag);
     htable = findobj('Tag','uitableResults');
@@ -394,7 +394,6 @@ else
 end
 
 
-
 % --- Executes on button press in radioPan.
 function radioPan_Callback(hObject, eventdata, handles)
 % hObject    handle to radioPan (see GCBO)
@@ -421,50 +420,6 @@ else
 end
 %dcm_obj = datacursormode(handles.axes1)
 
-% --- Executes on button press in radioROI.
-function radioROI_Callback(hObject, eventdata, handles)
-% hObject    handle to radioROI (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of radioROI
-if (get(hObject,'Value') > 0)
-    axes(handles.axes1);
-    %set interactive polygon tool
-    [x,y, BW, xi, yi] = roipoly;
-    %save data
-    dataroi = struct('roi', BW, 'xi',xi,'yi',yi,'x',x,'y',y);
-    hfiles = findobj('Tag','btnBrowser');
-    %hfdata = hfiles.UserData;
-    hfdata = get(hfiles,'UserData');
-    roifile = fullfile(hfdata.imagePath, 'neurites_roi.tif');
-    imwrite(BW, roifile);
-    set(hObject,'UserData',dataroi);
-    
-    %show mask image in plot 2
-    %setTitlePlot2(handles,'');   
-    axes(handles.axes2);
-    cla;
-    imshow(BW)
-    title('ROI Mask');
-    
-    %Convert ROI to um2 if csv config loaded
-    hScale = findobj('Tag', 'editScale');
-    scale = str2double(get(hScale,'String'));
-    if (isempty(scale) || scale ==0)
-        scale = 1;
-    end
-    [RCols, RData] = areaPolyROI(dataroi,scale);
-    %Results table
-    htable = findobj('Tag','uitableResults');
-    set(htable,'data',RData,'ColumnName',RCols);
-    %Directions
-    status= sprintf('ROI set: Proceed to Identify button')
-    updateStatus(handles,status);
-else
-    %hObject.UserData = {};
-    set(hObject,'UserData',{});
-end
 
 % --- Executes on button press in radioNone.
 function radioNone_Callback(hObject, eventdata, handles)
@@ -576,11 +531,12 @@ if ( ~isempty(csvdata))
             data.analyser = N;
             set(h,'UserData',data);
         else
-            M = estimateOverlay(handles,I,csv1);
-            if (exists(data.analyser))
-                M.CentroidX = N.soma.centroid(1);
-                M.CentroidY = N.soma.centroid(2);
-            end
+            [Scale, Shiftx, Shifty] = estimateOverlay(handles,I,csv1);
+            CentroidX = N.soma.centroid(1);
+            CentroidY = N.soma.centroid(2);
+            AnnulusOD = 1;
+            AnnulusID = 1;
+            M = table(Scale, Shiftx, Shifty, CentroidX, CentroidY, AnnulusOD, AnnulusID);
         end
         loadConfig(M,getProgramtype,0);
         
@@ -663,42 +619,70 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
     %data = h.UserData;
     data = get(h,'UserData');
     N = data.analyser;
-    if length(N.maskedI) > 0
+    hCSV = findobj('Tag','Menu_File_loadcsv');
+    csvdata = get(hCSV,'UserData');
+
+    if ( ~isempty(csvdata) && ~isempty(N.maskedI))
+        csv = fullfile(csvdata.csvPath, csvdata.csvFile);
+        CSVFile = readtable(csv);
         %Get scale factor
         hScale = findobj('Tag','editScale');
-        Scale = str2double(get(hScale,'String'));
+        Scale = str2num(get(hScale,'String'));
+        hX = findobj('Tag','editShiftx');
+        Shiftx = str2num(get(hX,'String'));
+        hY = findobj('Tag','editShifty');
+        Shifty = str2num(get(hY,'String'));
         hOD = findobj('Tag','editOD');
         od = str2double(get(hOD,'String'));
         hAL = findobj('Tag','editLength');
         arclength = str2double(get(hAL,'String'));
+        if (isempty(arclength)||isnan(arclength))
+            arclength=45;
+        end
         hML = findobj('Tag','editMidline');
         midline = str2double(get(hML,'String'));
+        if (isempty(midline)||isnan(midline))
+            midline=45;
+        end
         hSr = findobj('Tag','chkSingleRun');
-        
         if (get(hSr,'Value') > 0)
-            single = 1;
-            
+            single = 1;      
         else
             single = 0;
         end
         
-        if (isempty(arclength)||isnan(arclength))
-            arclength=45;
-        end
-        if (isempty(midline)||isnan(midline))
-            midline=45;
-        end
+        [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, single, CSVFile);
         
-        [T,colnames] = analyseAnnulus(Scale, N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, 1,single);
-        
+        %Generate table
+        colnames = {'ArcMidline' 'Area' 'Tree' 'Branch' 'Length'  'Somax' 'Color'};
+        arcs = keys(regionMap)
+        for i=1:numel(arcs)
+            n = regionMap(arcs{i});
+            for j = 1:numel(n{1,1}.neurites)
+                k = j+i-1
+                lineStruct(k,1).ArcMidline = n{1,1}.midline;         %arcs(i);
+                lineStruct(k,1).Area = n{1,1}.sarea;                  %area of arc
+                lineStruct(k,1).Tree = n{1,1}.neurites(k).tree;
+                lineStruct(k,1).Branch = n{1,1}.neurites(k).branch;
+                lineStruct(k,1).Length = n{1,1}.neurites(k).nlength;  %length within arc 
+                lineStruct(k,1).Somax = n{1,1}.neurites(k).somax;    %distance back to soma
+                lineStruct(k,1).Color = n{1,1}.color; 
+            end
+        end
+    
+        T = struct2table(lineStruct)
+        htable = findobj('Tag','uitableResults');
+       % Data must be a numeric, logical, or cell array
+       % set(htable,'data',T,'ColumnName', colnames);
         
         pathname = data.imagePath;
         %save to file
         outputfile = fullfile(pathname, 'neurites_annulus_data.csv');
         if single
             %append to table data
-            T1 = readtable(outputfile);
+            
             if exist(outputfile, 'file') == 2
+                T1 = readtable(outputfile);
                 Tnew = [T1;T];
             else
                 Tnew = T;
@@ -707,7 +691,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         else
             writetable(T,outputfile);
         end
-        status = sprintf('Analysis complete. Table written to %s',outputfile);
+        status = sprintf('Analysis complete. Total neurites/annulus area: %d percent. Table written to %s',(neurites_area/annulus_area)*100, outputfile);
         updateStatus(handles,status);
     else
         msgbox('Create Annulus mask first');
@@ -757,10 +741,20 @@ function btnChangeCentroid_Callback(hObject, eventdata, handles)
 	set(hCY, 'String',num2str(pos(2)));
     
     N.soma.centroid = [pos(1) pos(2)]
-    
-    %delete(p1);
     p1 = plotCentroid(N.soma.centroid(:,1), N.soma.centroid(:,2));
     
+    %delete(p1);
+    nC = findobj('Tag', 'btnCentroid_Callback');
+    
+    if ~isempty(get(nC,'UserData'))
+        p0 = nC.UserData.centroid;
+        delete(p0);
+        nC.UserData.centroid = p1;
+    else
+        data = struct('centroid',p1);
+        set(nC,'UserData',data);
+    end
+       
     %save back
     nH.UserData.analyser = N;
     set(nH, 'UserData', nH.UserData);
@@ -777,7 +771,9 @@ nH = findobj('Tag', 'menu_File_loadimage');
 N = nH.UserData.analyser;
 CentroidX = N.soma.centroid(1);
 CentroidY = N.soma.centroid(2);
-plotCentroid(CentroidX, CentroidY); 
+pc = plotCentroid(CentroidX, CentroidY); 
+data = struct('centroid',pc);
+set(hObject,'UserData',data); 
 
 
 function saveDataFile(outputfile,colnames,tabledata)
@@ -1146,17 +1142,25 @@ delete(hObject);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-
-
-
 % --- Executes on button press in btnReloadImage.
 function btnReloadImage_Callback(hObject, eventdata, handles)
 % hObject    handle to btnReloadImage (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-axes(handles.axes1);
-hfiles = findobj('Tag','menu_File_loadimage');
-hfdata = get(hfiles,'UserData');
-I = hfdata.img;
-hold off
-imshow(I);
+    axes(handles.axes1);
+    hfiles = findobj('Tag','menu_File_loadimage');
+    hfdata = get(hfiles,'UserData');
+    I = hfdata.img;
+    hold off
+%imshow(I);
+    %load image in panel
+    hSP = get(handles.axes1,'parent');
+    ax1 = axes('parent',hSP,'position',[0 0 1 1],'Units','pixels');
+    api = iptgetapi(hSP);
+    %api.replaceImage(I);
+    hIm=image(I,'parent',ax1);
+    % Reset magnification  
+    mag = api.findFitMag();
+    api.setMagnification(mag);
+    %imoverview(hIm) % doesn't work
+    updateStatus(handles,'Reloaded image');

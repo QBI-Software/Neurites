@@ -1,16 +1,31 @@
 QBI Williams Neurites Synapse Analyser
 ---------------------------------------
-Description: Developed for Simon de Croft (Williams lab) for the 
-detection and analysis of synaptic regions of two neurons.
+Description: Developed for the Williams lab for the morphological
+detection and analysis of dendritic fields.
+	1. Synapse Analysis :
+       Detects and analyses regions of apposition (potential synaptic        regions) of overlapping dendritic fields of two neurons.
+	2. Annulus Analysis :
+       Analyses the neurites of a single neuron under an annulus. 
+       Also presents information on a dendrogram with higlighted branches.
 
 Input: 
 -----
-   1. Image (tiff or jpg) with both neurons as two color tracing (from Neurolucida)
+   1. Image (tiff or jpg) (eg, from Neurolucida tracing)
+   		a. Synapse Analysis: requires two neurons in separate colors 
+   		b. Annulus Analysis: single neuron
    2. CSV analysis files for each cell 
-      ie., Tab 2 'Segment Points to Dendrites') labelled accordingly 
-      eg. DSdata.csv and SBACdata.csv
+      eg, Neurolucida measurements: Tab 2 'Segment Points to Dendrites' 
 
-Output:
+Output files:
+NB. Output files will be overwritten on each run (rename files in browser to save if necessary)
+
+Synapse Analysis Output:
+-----
+  1. Neurites_data.csv (analysis)
+  2. Neurites_roi.tif (ROI mask image)
+  3. Neurites_config.csv (Configuration for overlay of CSV data)
+  
+Annulus Analysis Output:
 -----
   1. Neurites_data.csv (analysis)
   2. Neurites_roi.tif (ROI mask image)
@@ -18,28 +33,13 @@ Output:
 
 Requires:
 -----
+  Matlab version R2015a (other versions not tested)
   Matlab Image Processing Toolbox
   Matlab Statistics Toolbox
 
 Usage:
 -----
-  1. Load image file (tif or jpg)
-  2. Load analysis files (csv) as above
-  3. Set ROI with ROI tool (radio button in Actions->Image view) -
-      double-click to save
-  4. Register CSV overlay - adjust with Configuration options then 
-  click on 'Save config' this will reload when analysis files are loaded:
-    Scale: integer (eg 1, 10)
-    Fit tolerance: Number of pixels either side - usually 1
-    ShiftX: Number of pixels to shift along x-axis (can be
-          determined with 'Image Tool -> pixel region button or
-          measurement tool')
-    ShiftY: Number of pixels to shift along y-axis (as for x)
-    Min length: Minimum length of a synaptic region (eg 10 pixels)
-    Tolerance: Nearest neighbour matching of apposing regions (eg 1
-          pixel)
-  5. Identify Synaptic Regions - runs analysis. Check results in windows and table.
+  Refer to https://github.com/QBI-Software/Neurites/wiki/Instructions
 
-NB. Output files will be overwritten on each run - to save just copy file
-directly
+
 
