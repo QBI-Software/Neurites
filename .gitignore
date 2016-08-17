@@ -1,3 +1,4 @@
 *.asv
 sampledata/*
 *.bak
+*.md~

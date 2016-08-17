@@ -181,7 +181,7 @@ function menu_File_loadimage_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
     
     fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
-    
+    updateStatus(handles,'Loading image, please wait ...');
     [imageFile, imagePath, ~] = ...
       uigetfile(fileTypes, ...
 		'Select neuron image', ...
@@ -621,7 +621,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
     N = data.analyser;
     hCSV = findobj('Tag','Menu_File_loadcsv');
     csvdata = get(hCSV,'UserData');
-
+    updateStatus(handles,'status');
     if ( ~isempty(csvdata) && ~isempty(N.maskedI))
         csv = fullfile(csvdata.csvPath, csvdata.csvFile);
         CSVFile = readtable(csv);
@@ -652,28 +652,38 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         end
         
         [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, single, CSVFile);
-        
+        N.Regions = regionMap;
         %Generate table
-        colnames = {'ArcMidline' 'Area' 'Tree' 'Branch' 'Length'  'Somax' 'Color'};
         arcs = keys(regionMap)
+        k=0;
         for i=1:numel(arcs)
             n = regionMap(arcs{i});
-            for j = 1:numel(n{1,1}.neurites)
-                k = j+i-1
-                lineStruct(k,1).ArcMidline = n{1,1}.midline;         %arcs(i);
-                lineStruct(k,1).Area = n{1,1}.sarea;                  %area of arc
-                lineStruct(k,1).Tree = n{1,1}.neurites(k).tree;
-                lineStruct(k,1).Branch = n{1,1}.neurites(k).branch;
-                lineStruct(k,1).Length = n{1,1}.neurites(k).nlength;  %length within arc 
-                lineStruct(k,1).Somax = n{1,1}.neurites(k).somax;    %distance back to soma
-                lineStruct(k,1).Color = n{1,1}.color; 
+            if (length(arcs)==1)
+                n = n{1,1};
+            end
+            for j = 1:numel(n.neurites)
+                k = k+1
+                neurite = n.neurites(j)
+                lineStruct(k,1).ArcMidline = n.midline;             %midline of arc in degrees eg 45o
+                lineStruct(k,1).ArcLength = n.slength;              %length of arc in degrees eg 45o
+                lineStruct(k,1).ArcArea = n.sarea/Scale;            %area of arc (um2)
+                lineStruct(k,1).Tree = n.neurites(j).tree;          %tree number of this neurite
+                lineStruct(k,1).Branch = n.neurites(j).branch;      %branch number/s of this neurite
+                lineStruct(k,1).Length = n.neurites(j).nlength;     %length from min to max points (should be total neurite segment length) (um)                
+                lineStruct(k,1).SomaDist = n.neurites(j).somad;     %furthest distance back to soma (um) ie maxpoint
+                lineStruct(k,1).SomaVol = n.neurites(j).somav;      %Volume of dendrite back to soma (um3) ie maxpoint
+                lineStruct(k,1).SomaSA = n.neurites(j).somas;       %SA of dendrite back to soma (um2) ie maxpoint
+                lineStruct(k,1).CSVRow = n.neurites(j).crow;        %corresponding row number in CSV
+                %lineStruct(k,1).Color = n.color; 
             end
         end
     
-        T = struct2table(lineStruct)
+        T = struct2table(lineStruct(1:end,:));
+        colnames = T.Properties.VariableNames
         htable = findobj('Tag','uitableResults');
-       % Data must be a numeric, logical, or cell array
-       % set(htable,'data',T,'ColumnName', colnames);
+        % Data must be a numeric, logical, or cell array
+        %colnames = {'ArcMidline' 'Area' 'Tree' 'Branch' 'Length' 'NArea' 'Somax'};
+        set(htable,'data',[T.ArcMidline, T.ArcLength,T.ArcArea,T.Tree,T.Branch(1),T.Branch(2),T.Length,T.SomaDist,T.SomaVol,T.SomaSA,T.CSVRow(1), T.CSVRow(2)],'ColumnName',colnames);
         
         pathname = data.imagePath;
         %save to file
@@ -1157,10 +1167,10 @@ function btnReloadImage_Callback(hObject, eventdata, handles)
     hSP = get(handles.axes1,'parent');
     ax1 = axes('parent',hSP,'position',[0 0 1 1],'Units','pixels');
     api = iptgetapi(hSP);
-    %api.replaceImage(I);
+    api.replaceImage(I);
     hIm=image(I,'parent',ax1);
     % Reset magnification  
     mag = api.findFitMag();
     api.setMagnification(mag);
-    %imoverview(hIm) % doesn't work
+    imoverview(hIm) % doesn't work
     updateStatus(handles,'Reloaded image');
