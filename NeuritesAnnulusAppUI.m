@@ -666,13 +666,13 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
                 neurite = n.neurites(j)
                 lineStruct(k,1).ArcMidline = n.midline;             %midline of arc in degrees eg 45o
                 lineStruct(k,1).ArcLength = n.slength;              %length of arc in degrees eg 45o
-                lineStruct(k,1).ArcArea = n.sarea/Scale;            %area of arc (um2)
-                lineStruct(k,1).Tree = n.neurites(j).tree;          %tree number of this neurite
-                lineStruct(k,1).Branch = n.neurites(j).branch;      %branch number/s of this neurite
+                lineStruct(k,1).ArcArea = n.sarea/Scale;            %area of arc (um2) 
                 lineStruct(k,1).Length = n.neurites(j).nlength;     %length from min to max points (should be total neurite segment length) (um)                
                 lineStruct(k,1).SomaDist = n.neurites(j).somad;     %furthest distance back to soma (um) ie maxpoint
                 lineStruct(k,1).SomaVol = n.neurites(j).somav;      %Volume of dendrite back to soma (um3) ie maxpoint
                 lineStruct(k,1).SomaSA = n.neurites(j).somas;       %SA of dendrite back to soma (um2) ie maxpoint
+                lineStruct(k,1).Tree = n.neurites(j).tree;          %tree number of this neurite
+                lineStruct(k,1).Branch = n.neurites(j).branch;      %branch number/s of this neurite
                 lineStruct(k,1).CSVRow = n.neurites(j).crow;        %corresponding row number in CSV
                 %lineStruct(k,1).Color = n.color; 
             end
@@ -683,7 +683,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         htable = findobj('Tag','uitableResults');
         % Data must be a numeric, logical, or cell array
         %colnames = {'ArcMidline' 'Area' 'Tree' 'Branch' 'Length' 'NArea' 'Somax'};
-        set(htable,'data',[T.ArcMidline, T.ArcLength,T.ArcArea,T.Tree,T.Branch(1),T.Branch(2),T.Length,T.SomaDist,T.SomaVol,T.SomaSA,T.CSVRow(1), T.CSVRow(2)],'ColumnName',colnames);
+        set(htable,'data',[T.ArcMidline, T.ArcLength,T.ArcArea,T.Length,T.SomaDist,T.SomaVol,T.SomaSA,T.Tree,T.Branch,T.CSVRow],'ColumnName',colnames);
         
         pathname = data.imagePath;
         %save to file
