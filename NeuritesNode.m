@@ -8,8 +8,11 @@ classdef NeuritesNode
         leftnode        %child NeuritesNode obj
         rightnode       %child NeuritesNode obj
         nodetype        %Indicates whether Branch or END ie no childnodes
-        anglesoma       %angle of node coords to soma
+        anglearc       %angle of node coords to soma
         nodelevel       %level of branching with 1 as root
+        vol             %volume of branch um3
+        sa              %sa of branch um2
+        points          %xy points
     end
     
     methods
@@ -19,6 +22,14 @@ classdef NeuritesNode
             obj.nodetype = nodetype;
             obj.nodelevel = nodelevel;
         end
+        function obj = setMeasurements(obj,anglearc, vol, sa, blength, points)
+            obj.anglearc = anglearc;
+            obj.vol = vol;
+            obj.sa = sa;
+            obj.branchlength = blength;
+            obj.points = points;
+        end
+            
         %Add child node if empty  - to change, use direct n.left=node
         function [parent,childnode] = addChildNode(obj,childnode)
             %detect nodelevel to add to

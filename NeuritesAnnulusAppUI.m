@@ -621,7 +621,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
     N = data.analyser;
     hCSV = findobj('Tag','Menu_File_loadcsv');
     csvdata = get(hCSV,'UserData');
-    updateStatus(handles,'status');
+    updateStatus(handles,'Running Analysis ...');
     if ( ~isempty(csvdata) && ~isempty(N.maskedI))
         csv = fullfile(csvdata.csvPath, csvdata.csvFile);
         CSVFile = readtable(csv);
@@ -673,7 +673,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
                 lineStruct(k,1).SomaSA = n.neurites(j).somas;       %SA of dendrite back to soma (um2) ie maxpoint
                 lineStruct(k,1).Tree = n.neurites(j).tree;          %tree number of this neurite
                 lineStruct(k,1).Branch = n.neurites(j).branch;      %branch number/s of this neurite
-                lineStruct(k,1).CSVRow = n.neurites(j).crow;        %corresponding row number in CSV
+                %lineStruct(k,1).CSVRow = n.neurites(j).crow;        %corresponding row number in CSV
                 %lineStruct(k,1).Color = n.color; 
             end
         end
@@ -683,7 +683,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         htable = findobj('Tag','uitableResults');
         % Data must be a numeric, logical, or cell array
         %colnames = {'ArcMidline' 'Area' 'Tree' 'Branch' 'Length' 'NArea' 'Somax'};
-        set(htable,'data',[T.ArcMidline, T.ArcLength,T.ArcArea,T.Length,T.SomaDist,T.SomaVol,T.SomaSA,T.Tree,T.Branch,T.CSVRow],'ColumnName',colnames);
+        set(htable,'data',[T.ArcMidline, T.ArcLength,T.ArcArea,T.Length,T.SomaDist,T.SomaVol,T.SomaSA,T.Tree],'ColumnName',colnames(1:8));
         
         pathname = data.imagePath;
         %save to file
