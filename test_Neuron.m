@@ -8,3 +8,6 @@ configfile = 'D:\Projects\Williams_neurites\Alpha Ganglion cells (Arne)\annulusd
 config = readtable(configfile)
 soma = NeuritesSoma(0,0,[config.CentroidX config.CentroidY])
 neuron = loadCSVTree(csvfile,soma,config.Scale);
+sprintf('Loaded neuron with %d trees', length(neuron));
+%INTEGRATE: lookup from analyse app via id == fR
+%TODO: Output phytree

@@ -6,23 +6,26 @@ function neuron = loadCSVTree( csvdata, soma, scale )
 % 3. List branches in order of order and location
 CSV = readtable(csvdata);
 t = unique(CSV.Tree);
-u = unique(CSV.Order); %COUNT NUMBER ep AND bp
-neuron = {};
+%u = unique(CSV.Order); %COUNT NUMBER ep AND bp
+neuron = cell(length(t),1);
 for j=1:length(t)
     csvidx = find(CSV.Tree ==j); %indices of matching rows
-    branches = {}; %cell(t,u);
-    neuron{j} = branches;
+    branches = {};
+    %neuron{j} = {};
+    %branches = neuron{j};
     blength = 0;
-    bcount = 1;
+    %bcount = 1; %use csvrow as id
     bvol = 0;
     bsa = 0;
     points =[];
     atypes=[];
     n0 = []; %parentnode
     idx = 1; %initial 
-    for i=1:length(csvidx)
+    for k=1:length(csvidx)
+        i = csvidx(k); %get row idx
         order = CSV.Order(i);
         btype = char(CSV.PointType(i));
+        bcount = i;
         blength = blength + CSV.Length__m_(i);
         bvol = bvol + CSV.Volume__m__(i);
         bsa = bsa + CSV.SurfaceArea__m__(i);
@@ -55,7 +58,7 @@ for j=1:length(t)
         end
 
     end
-    
+    neuron{j} = branches;
 end
 
 
@@ -64,13 +67,16 @@ end
 %move this function to class?
 function [N,m] = findParent(branches, level)
    N = 0;
+   sprintf('Level %d', level)
    %Find end branches - first string
    for m=1:length(branches{1,level})
         N = branches{1,level}(m,1);
         if (N.isBranchpoint() && ~N.hasChildNodes())
-            disp('Parent node ')
+            sprintf('Parent node %d',N.id)
             N
             break;
+        else
+            N = 0;
         end
    end
 end
