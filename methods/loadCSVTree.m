@@ -11,6 +11,7 @@ neuron = {};
 for j=1:length(t)
     csvidx = find(CSV.Tree ==j); %indices of matching rows
     branches = {}; %cell(t,u);
+    neuron{j} = branches;
     blength = 0;
     bcount = 1;
     bvol = 0;
@@ -18,6 +19,7 @@ for j=1:length(t)
     points =[];
     atypes=[];
     n0 = []; %parentnode
+    idx = 1; %initial 
     for i=1:length(csvidx)
         order = CSV.Order(i);
         btype = char(CSV.PointType(i));
@@ -26,16 +28,16 @@ for j=1:length(t)
         bsa = bsa + CSV.SurfaceArea__m__(i);
         if (strcmp(btype, 'CP')==0)
             bradians = findAngleSoma(CSV.StartX(i),CSV.StartY(i),soma,scale);
-            bangle = radtodeg(bradians);
-            n = NeuritesNode(bcount,blength,btype,order)
+            bangle = radtodeg(abs(bradians));
+            n = NeuritesNode(bcount,blength,btype,order);
             n = n.setMeasurements(bangle,bvol,bsa,blength,points)
             if (~isempty(n0) && isa(n0,'NeuritesNode'))
                     %%TODO: set root node to parent of this node
                     if (n0.nodelevel ~= n.nodelevel -1)
-                        n0 = findParent(branches, n.nodelevel-1);
+                        [n0,idx] = findParent(branches, n.nodelevel-1);
                     end
                     [n0,n] = n0.addChildNode(n);
-                    branches{n0.nodelevel}(1,1) = n0; %replace
+                    branches{n0.nodelevel}(idx,1) = n0; %replace
                     if length(branches) >= order
                         branches{order} = cat(1,branches{order},n);
                     else
@@ -47,29 +49,23 @@ for j=1:length(t)
                 branches{n0.nodelevel}(1,1) = n0; %add
             end
 
-    %         if (length(branches) >= order)
-    %             branches{n0.nodelevel}(1,1) = n0; %replace
-    %             branches{order} = cat(1,branches{order},n);
-    %         else
-    %             branches{n0.nodelevel}(1,1) = n0;
-    %         end
             blength = 0;
             bcount = bcount+1;
 
         end
 
     end
-    neuron{j} = branches;
+    
 end
 
 
 end
 
 %move this function to class?
-function N = findParent(branches, level)
+function [N,m] = findParent(branches, level)
    N = 0;
    %Find end branches - first string
-   for m=1:length(branches{1,level}):1
+   for m=1:length(branches{1,level})
         N = branches{1,level}(m,1);
         if (N.isBranchpoint() && ~N.hasChildNodes())
             disp('Parent node ')

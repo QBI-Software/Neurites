@@ -61,7 +61,7 @@ classdef NeuritesNode
         
         
         function bool = isBranchpoint(obj)
-            bool = (strcmp(obj.nodetype,'BP') > 0);
+            bool = strcmp(obj.nodetype,'BP');
             
         end
         
