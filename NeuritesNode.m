@@ -4,6 +4,7 @@ classdef NeuritesNode
     
     properties
         id
+        countid         %order added - for tree generation
         branchlength    %length of branch as float
         leftnode        %child NeuritesNode obj
         rightnode       %child NeuritesNode obj
@@ -16,8 +17,9 @@ classdef NeuritesNode
     end
     
     methods
-        function obj = NeuritesNode(id,branchlength,nodetype,nodelevel)
+        function obj = NeuritesNode(id,branchlength,nodetype,nodelevel,countid)
             obj.id = id;
+            obj.countid = countid;
             obj.branchlength = branchlength;
             obj.nodetype = nodetype;
             obj.nodelevel = nodelevel;

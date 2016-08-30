@@ -14,7 +14,7 @@ for j=1:length(t)
     %neuron{j} = {};
     %branches = neuron{j};
     blength = 0;
-    %bcount = 1; %use csvrow as id
+    bcount = 1; 
     bvol = 0;
     bsa = 0;
     points =[];
@@ -25,15 +25,16 @@ for j=1:length(t)
         i = csvidx(k); %get row idx
         order = CSV.Order(i);
         btype = char(CSV.PointType(i));
-        bcount = i;
+        bid = i;
         blength = blength + CSV.Length__m_(i);
         bvol = bvol + CSV.Volume__m__(i);
         bsa = bsa + CSV.SurfaceArea__m__(i);
         if (strcmp(btype, 'CP')==0)
             bradians = findAngleSoma(CSV.StartX(i),CSV.StartY(i),soma,scale);
             bangle = radtodeg(abs(bradians));
-            n = NeuritesNode(bcount,blength,btype,order);
+            n = NeuritesNode(bid,blength,btype,order,bcount);
             n = n.setMeasurements(bangle,bvol,bsa,blength,points)
+            
             if (~isempty(n0) && isa(n0,'NeuritesNode'))
                     %%TODO: set root node to parent of this node
                     if (n0.nodelevel ~= n.nodelevel -1)
