@@ -92,23 +92,28 @@ eps = [];
 bps = [];
 ptrs = [];
 %for j=[length(branches):-1:1]
-for j=1:length(branches)
-    %Find end branches - first string
-    for (m=1:length(branches{1,j}))
-        N = branches{1,j}(m,1)
-        if (N.isBranchpoint())
-            bps = cat(1,bps,N);
-            ptrs = cat(1, ptrs,[N.countid N.leftnode.countid]);
-            ptrs = cat(1, ptrs,[N.countid N.rightnode.countid]);
-        else
-            eps = cat(1,eps,N);
-        end
-    end
-  
-end
-branchdistances = cat(1, (arrayfun(@(n) n.branchlength,bps)),(arrayfun(@(n) n.branchlength,eps)))
+olist = {};
+sprintf('%d levels',length(branches))
+out = [];
+out2 = [];
+out3 = [];
+N = branches{1,1}(1,1); %rootnode
+out2 = inOrder(data, N, out2);
+out = postOrder(data, N, out); %THIS ONE BEST
+out3 = preOrder(data, N, out3);
+
+%branchdistances = arrayfun(@(n) n.branchlength, out)
+%bcount = length(branchdistances);
+%bpair = [1 2;3 4;11 5;12 6;7 8;13 14;10 15;16 9] - this works but HOW??
+
+orderedout = arrayfun(@(n) n.isBranchpoint(),out)
+bps = out(orderedout)
+eps = out(~orderedout)
+
+branchdistances = cat(1, (arrayfun(@(n) n.branchlength,eps)),(arrayfun(@(n) n.branchlength,bps)))
 branchleaves = arrayfun(@(n) n.nodelevel,eps)
 branchnames = arrayfun(@(n) sprintf('Branch %d',n.nodelevel),bps, 'uniformoutput', false)
+branchdata = getBranch2Leaf(out)
 tree = phytree(branchdata,branchdistances)
 names = get(tree,'LeafNames')
 
@@ -123,9 +128,56 @@ end
 function data = loadById(branches)
     data = {};
     for j=1:length(branches)
-      for (m=1:length(branches{1,j}):1)
+      for m=1:length(branches{1,j})
         N = branches{1,j}(m,1);
         data{N.id} = N;
       end
+    end
+end
+
+function output = inOrder(data, nnode, output)
+    if (~isempty(nnode.leftnode))
+        output = inOrder(data, data{nnode.leftnode.id}, output);
+    end
+    output = cat(1, output, nnode);
+    if (~isempty(nnode.rightnode))
+        output = inOrder(data, data{nnode.rightnode.id}, output);
+    end
+end
+
+function output = postOrder(data, nnode, output)
+    if (~isempty(nnode.leftnode))
+        output = postOrder(data, data{nnode.leftnode.id}, output);
+    end
+    
+    if (~isempty(nnode.rightnode))
+        output = postOrder(data, data{nnode.rightnode.id}, output);
+    end
+    output = cat(1, output, nnode);
+end
+    
+function output = preOrder(data, nnode, output)
+    output = cat(1, output, nnode);
+    if (~isempty(nnode.leftnode))
+        output = postOrder(data, data{nnode.leftnode.id}, output);
+    end
+    
+    if (~isempty(nnode.rightnode))
+        output = postOrder(data, data{nnode.rightnode.id}, output);
+    end
+    
+    
+end
+
+function bdata = getBranch2Leaf(nlist)
+    bdata = [];
+    for i=1:length(nlist)
+        leaf =i;
+        if (nlist(i).hasParent())
+            pid = nlist(i).parentnode.id;
+            parent = arrayfun(@(x) ~isempty(find(x.id == pid)), nlist,'uniformoutput',true)
+            branch = find(parent) %should give idx
+            bdata = cat(1,bdata,[branch leaf])
+        end
     end
 end

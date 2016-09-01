@@ -8,8 +8,9 @@ classdef NeuritesNode
         branchlength    %length of branch as float
         leftnode        %child NeuritesNode obj
         rightnode       %child NeuritesNode obj
+        parentnode      %parent NeuritesNode obj
         nodetype        %Indicates whether Branch or END ie no childnodes
-        anglearc       %angle of node coords to soma
+        anglearc        %angle of node coords to soma
         nodelevel       %level of branching with 1 as root
         vol             %volume of branch um3
         sa              %sa of branch um2
@@ -39,26 +40,27 @@ classdef NeuritesNode
             
             %parent = obj.findNodeLevel(node.nodelevel-1,1)
             while(parent.nodelevel < childnode.nodelevel-1)
-                if obj.isNode(parent.leftnode) && parent.leftnode.isBranchpoint()
-                    parent = parent.leftnode;
-                elseif obj.isNode(parent.rightnode) && parent.rightnode.isBranchpoint()
+                if obj.isNode(parent.rightnode) && parent.rightnode.isBranchpoint()
                     parent = parent.rightnode;
+                elseif obj.isNode(parent.leftnode) && parent.leftnode.isBranchpoint()
+                    parent = parent.leftnode;
                 else
                     break
                 end
             end
+            if (childnode.id ~= parent.id)
+                childnode.parentnode = parent;   
+            end
             % Add childnode to parent on next level up
-            if ~obj.isNode(parent.leftnode) || (parent.leftnode.hasID(childnode.id))
-                parent.leftnode = childnode;
-            elseif ~obj.isNode(parent.rightnode)|| (parent.rightnode.hasID(childnode.id))
+            if ~obj.isNode(parent.rightnode)|| (parent.rightnode.hasID(childnode.id))
                 parent.rightnode = childnode;
+                
+            elseif ~obj.isNode(parent.leftnode) || (parent.leftnode.hasID(childnode.id))
+                parent.leftnode = childnode;
             else 
-               disp('Not added')
+               disp('Warning:Child node NOT added')
                 
             end
-           
-            
-            
         end
         
         
@@ -68,13 +70,28 @@ classdef NeuritesNode
         end
         
         function bool = isNode(obj,node)
-            bool = isa(node,'NeuritesNode')
+            bool = isa(node,'NeuritesNode');
         end
         
         function bool = hasID(obj,id)
-            bool = (obj.isNode(obj) && obj.id == id)
+            bool = (obj.isNode(obj) && obj.id == id);
         end
         
+        function bool = hasParent(obj)
+            bool = (obj.isNode(obj) && ~isempty(obj.parentnode));
+        end
+        
+        function sibling = getSibling(obj)
+            sibling = [];
+            if (obj.hasParent())
+                if (obj.parentnode.leftnode.id == obj.id)
+                    sibling = obj.parentnode.rightnode;
+                elseif (obj.parentnode.rightnode.id == obj.id)
+                    sibling = obj.parentnode.leftnode;
+                end
+            end
+        end
+                
       
         % finds node on level and whether is branchpoint (0|1)
         function childnode = findNodeLevel(obj,level,branchpoint)
