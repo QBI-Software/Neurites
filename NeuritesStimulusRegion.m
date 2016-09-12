@@ -64,8 +64,9 @@ classdef NeuritesStimulusRegion
                             disp('Different row detected for max');
                             xC = 0;
                             yC = 0;
+                            [l,o,a,endpoints,branchpoints] = findNeuriteMeasurements(obj,xC,yC,[xC2 yC2],CSVfile,fR);
                         end
-                        [l,o,a,endpoints,branchpoints] = findMeasurements(obj,xC,yC,[xC2 yC2],CSVfile,fR);
+                        
                         [d,v,s,somapoints] = findSomaMeasurePoints(obj,xC,yC,CSVfile,fR);
                         obj.neurites(idx,1).crow = fR;
                         obj.neurites(idx,1).tree = CSVfile.Tree(fR);
@@ -126,7 +127,7 @@ classdef NeuritesStimulusRegion
 %                         obj.neurites(idx,1).branch = [obj.neurites(idx,1).branch, CSVfile.Order(fR)]; %append new branch
 %                     end
 %                 end
-                idx = idx+1;
+               % idx = idx+1;
             end
         end
         %Requires setting  scale,shiftx,shifty,
