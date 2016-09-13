@@ -6,6 +6,7 @@ function loadConfig(M, programtype,clearlabels)
     hScale = findobj('Tag','editScale');
     hSX = findobj('Tag','editShiftx');
     hSY = findobj('Tag','editShifty');
+    hFit = findobj('Tag','editFit');
     initval = '';
     if ~isempty(M)
         set(hScale,'String',num2str(M.Scale));
@@ -22,11 +23,16 @@ function loadConfig(M, programtype,clearlabels)
         hCy = findobj('Tag','editCentroidY');
         hOD = findobj('Tag','editOD');
         hID = findobj('Tag','editID');
+        hW = findobj('Tag','editWidth');
+        hH = findobj('Tag','editHeight');
         if ~isempty(M)
             set(hCx,'String',num2str(M.CentroidX));
             set(hCy,'String',num2str(M.CentroidY));
             set(hOD,'String',num2str(M.AnnulusOD));
             set(hID,'String',num2str(M.AnnulusID));
+            set(hFit,'String',num2str(M.Fit));
+            set(hW,'String',num2str(M.Width));
+            set(hH,'String',num2str(M.Height));
         else %clear allfields
             set(hScale,'String',initval);
             set(hSX,'String',initval);
@@ -35,6 +41,9 @@ function loadConfig(M, programtype,clearlabels)
             set(hCy,'String',initval);
             set(hOD,'String',initval);
             set(hID,'String',initval);
+            set(hFit,'String',initval);
+            set(hW,'String',initval);
+            set(hH,'String',initval);
         end
     else
         hCell1 = findobj('Tag','editCell1');

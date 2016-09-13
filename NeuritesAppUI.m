@@ -654,7 +654,7 @@ function btnAnalysisFiles2_Callback(hObject, eventdata, handles)
     %save to userdata
     data = get(hObject,'UserData');
     if (isempty(data))
-        data = struct('csvPath2', csvPath, 'cell2file', cell2, 'cell2ID',cell2ID);
+        data = struct('csvPath', csvPath, 'cell2file', cell2, 'cell2ID',cell2ID);
     else
         data.csvPath = csvPath;
         data.cell2file = cell2;

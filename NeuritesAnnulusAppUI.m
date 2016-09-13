@@ -24,7 +24,7 @@ function varargout = NeuritesAnnulusAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAnnulusAppUI
 
-% Last Modified by GUIDE v2.5 16-Jun-2016 14:49:24
+% Last Modified by GUIDE v2.5 13-Sep-2016 15:51:54
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -75,20 +75,20 @@ if strcmp(get(hObject,'Visible'),'off')
         'Position',[50 190 551 450]) %match with GUI box
 	    
     % Add a Magnification Box and an Overview tool.
-    hMagBox = immagbox(hFig,hIm);
-    pos = get(hMagBox,'Position');
-    set(hMagBox,'Position',[0 0 pos(3) pos(4)])
-    imoverview(hIm)
-    %Get the scroll panel API to programmatically control the view.
-    api = iptgetapi(hSP);
-    %Get the current magnification and position.
-    %mag = api.getMagnification();
-    %r = api.getVisibleImageRect();
-    %View the top left corner of the image.
-    %api.setVisibleLocation(0.5,0.5)
-    %Change the magnification to the value that just fits.
-    api.setMagnification(api.findFitMag())
-    %Zoom in to 1600% on the dark spot.
+%     hMagBox = immagbox(hFig,hIm);
+%     pos = get(hMagBox,'Position');
+%     set(hMagBox,'Position',[0 0 pos(3) pos(4)])
+%     imoverview(hIm)
+%     %Get the scroll panel API to programmatically control the view.
+     api = iptgetapi(hSP);
+%     %Get the current magnification and position.
+%     %mag = api.getMagnification();
+%     %r = api.getVisibleImageRect();
+%     %View the top left corner of the image.
+%     %api.setVisibleLocation(0.5,0.5)
+%     %Change the magnification to the value that just fits.
+     api.setMagnification(api.findFitMag())
+%     %Zoom in to 1600% on the dark spot.
     %api.setMagnificationAndCenter(16,306,800)
     %test
     I = imread('synapse_EM.jpg');
@@ -467,6 +467,8 @@ function saveConfig_Callback(hObject, eventdata, handles)
     hCy = findobj('Tag','editCentroidY');
     hOD = findobj('Tag','editOD');
     hID = findobj('Tag','editID');
+    hW = findobj('Tag','editWidth');
+    hH = findobj('Tag','editHeight');
     Scale = str2double(get(hScale,'String'));
     Fit = str2double(get(hFit,'String'));
     Shiftx = str2double(get(hSX,'String'));
@@ -475,8 +477,10 @@ function saveConfig_Callback(hObject, eventdata, handles)
     CentroidY = str2double(get(hCy,'String'));
     AnnulusOD = str2double(get(hOD,'String'));
     AnnulusID = str2double(get(hID,'String'));
+    Width= str2double(get(hW,'String'));
+    Height = str2double(get(hH,'String'));
 
-    T = table(Scale, Fit, Shiftx, Shifty, CentroidX, CentroidY, AnnulusOD, AnnulusID);
+    T = table(Scale, Fit, Shiftx, Shifty, CentroidX, CentroidY, AnnulusOD, AnnulusID, Width, Height);
     %save to file
     %csvdata = handles.btnAnalysisFiles.UserData;
     hCSV = findobj('Tag','Menu_File_loadcsv');
@@ -564,6 +568,8 @@ if ( ~isempty(csvdata))
         YC1(end+1) = (T1.StartY(i) * hscale) + shifty;
         
         if(strcmp(T1.PointType(i),'EP') > 0)
+          XC1(end+1) = (T1.EndX(i) * hscale) + shiftx;
+          YC1(end+1) = (T1.EndY(i) * hscale) + shifty;  
           plot(XC1,-YC1,'color','c','LineStyle','-','LineWidth', 2);  
           XC1 = [];
           YC1 = [];  
@@ -589,6 +595,8 @@ if (get(hObject,'Value') > 0)
     h = findobj('Tag','menu_File_loadimage');
     data = get(h,'UserData');
     hScale = findobj('Tag','editScale');
+    scale = str2double(get(hScale,'String'));
+    hRoi = findobj('Tag','editScale');
     scale = str2double(get(hScale,'String'));
      
     if (isnan(od) || isnan(id))
@@ -650,8 +658,10 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         else
             single = 0;
         end
+        if (~isempty(data.roi) && data.roi =='annulus')
+            
+            [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, single, CSVFile);
         
-        [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, single, CSVFile);
         N.Regions = regionMap;
         %Generate table
         arcs = keys(regionMap)
@@ -1161,16 +1171,140 @@ function btnReloadImage_Callback(hObject, eventdata, handles)
     hfiles = findobj('Tag','menu_File_loadimage');
     hfdata = get(hfiles,'UserData');
     I = hfdata.img;
-    hold off
-%imshow(I);
-    %load image in panel
-    hSP = get(handles.axes1,'parent');
-    ax1 = axes('parent',hSP,'position',[0 0 1 1],'Units','pixels');
-    api = iptgetapi(hSP);
-    api.replaceImage(I);
-    hIm=image(I,'parent',ax1);
-    % Reset magnification  
-    mag = api.findFitMag();
-    api.setMagnification(mag);
-    imoverview(hIm) % doesn't work
+    cla;
+    imshow(I);
     updateStatus(handles,'Reloaded image');
+
+
+% --- Executes on button press in pbRectangle.
+function pbRectangle_Callback(hObject, eventdata, handles)
+% hObject    handle to pbRectangle (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    axes(handles.axes1);
+    hfiles = findobj('Tag','menu_File_loadimage');
+    hfdata = get(hfiles,'UserData');
+    N = hfdata.analyser;
+    hScale = findobj('Tag','editScale');
+    scale = str2double(get(hScale,'String'));
+    hfRectWidth = findobj('Tag','editHeight');
+    hfRectHeight = findobj('Tag','editWidth');
+    height = str2double(get(hfRectHeight,'String'));
+    width = str2double(get(hfRectWidth,'String'));
+    centroid =N.soma.centroid;
+    mask = applyRectangle(width,height, scale, centroid);
+    N = N.loadMask(mask);
+    imshow(N.maskedI);
+    roifile = fullfile(hfdata.imagePath, 'neurites_rectangle.tif');
+    imwrite(mask, roifile);
+    status = sprintf('Rectangle mask created: %s.', roifile);
+    %Update analyser data
+    hfdata.analyser = N;
+    set(hfiles,'UserData',hfdata);
+    updateStatus(handles,status);
+    
+
+
+
+
+function editWidth_Callback(hObject, eventdata, handles)
+% hObject    handle to editWidth (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editWidth as text
+%        str2double(get(hObject,'String')) returns contents of editWidth as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editWidth_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editWidth (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function editHeight_Callback(hObject, eventdata, handles)
+% hObject    handle to editHeight (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editHeight as text
+%        str2double(get(hObject,'String')) returns contents of editHeight as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editHeight_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editHeight (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function editFit_Callback(hObject, eventdata, handles)
+% hObject    handle to editFit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of editFit as text
+%        str2double(get(hObject,'String')) returns contents of editFit as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function editFit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to editFit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in rbAnn.
+function rbAnn_Callback(hObject, eventdata, handles)
+% hObject    handle to rbAnn (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of rbAnn
+hfiles = findobj('Tag','menu_File_loadimage');
+hfdata = get(hfiles,'UserData');
+if (get(hObject,'Value') > 0)
+    hfdata.roi = 'annulus';
+else
+    hfdata.roi = 'rect';
+end
+set(hfiles,'UserData', hfdata);
+
+
+
+% --- Executes on button press in rbRect.
+function rbRect_Callback(hObject, eventdata, handles)
+% hObject    handle to rbRect (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of rbRect
+hfiles = findobj('Tag','menu_File_loadimage');
+hfdata = get(hfiles,'UserData');
+if (get(hObject,'Value') > 0)
+    hfdata.roi = 'rect';
+else
+    hfdata.roi = 'annulus';
+end
+set(hfiles,'UserData', hfdata);
