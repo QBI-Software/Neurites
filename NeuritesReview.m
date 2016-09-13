@@ -49,7 +49,7 @@ function NeuritesReview(I,N,cell1label,cell2label)
 
     tth5 = uicontrol(hp,'Style','pushbutton','String','SAVE',...
        'Units','pixels','Position',[330 5 80 25], ...
-       'Visible','off','Callback',{@acceptChanges,handles,cell1label, cell2label} );
+       'Visible','off','Callback',{@acceptChanges,cell1label, cell2label} );
 
     tth6 = uicontrol(hp,'Style','pushbutton','String','Clear',...
        'Units','pixels','Position',[320 50 60 25],...
@@ -212,8 +212,10 @@ function p = showtrack(source,callbackdata,ix)
     set(hId,'UserData',hData);
 end    
 function changeSoma(source,callbackdata)
-    nH = findobj('Tag', 'menu_File_loadimage');
-    N1 = nH.UserData.analyser;
+    hId = findobj('Tag','btnIdentify');
+    hNData = get(hId,'UserData');
+    N1 = hNData.N;
+    %N1 = nH.UserData.analyser;
     s1 = [N1.soma1.centroid(:,1), N1.soma1.centroid(:,2)]
     s2 = [N1.soma2.centroid(:,1), N1.soma2.centroid(:,2)]
     prompt = {'Enter Soma 1 x,y coords:','Enter Soma 2 x,y coords:'};
@@ -396,7 +398,7 @@ function a = accept(synnum)
             a = 0;
     end
 end
-function acceptChanges(source,callbackdata,handles,cell1label, cell2label)
+function acceptChanges(source,callbackdata,cell1label, cell2label)
     prompt = 'Accept changes and update results (with filters)?';
     str = questdlg(prompt,'Update results',...
         'Yes','No','Yes');
@@ -442,7 +444,7 @@ function acceptChanges(source,callbackdata,handles,cell1label, cell2label)
              end
              
              msg = sprintf('Changed %d synaptic regions. Deleted %d synaptic regions. \nData updated to %s', length(hData.changed),length(hData.deleted), outputfile);
-             updateStatus(handles,msg);
+             msgbox(msg);
              set(hNId,'UserData',hNData);
              %Reset deleted and changed
              hData.i = 1;

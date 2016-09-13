@@ -114,11 +114,11 @@ classdef NeuritesAnalyser
         
         soma = NeuritesSoma(Area(idx),Perimeter(idx),c)
         if (display)
-         figure
-         imshow(label2rgb(L, @jet, [.5 .5 .5]))
+         %figure
+         %imshow(label2rgb(L, @jet, [.5 .5 .5]))
          hold on
-         plot(soma.centroid(:,1), soma.centroid(:,2),'color', 'r',...
-             'marker','o','linestyle','none','LineWidth', 2);
+         plot(soma.centroid(:,1), soma.centroid(:,2),'color', 'b',...
+             'marker','x','linestyle','none','LineWidth', 1);
         end
         
       end
@@ -136,7 +136,7 @@ classdef NeuritesAnalyser
           resolution = 1;
           
           %test
-          %figure
+          figure
           imshow(obj.maskedR)
           hold on
           %Masked region coords
@@ -516,146 +516,146 @@ classdef NeuritesAnalyser
 end
 
 %Utility function
-function [p1,p2] = findLinePoints(region)
-    rx = region(:,2);
-    ry = region(:,1);
-    [rxmin,ri1] = min(rx);
-    [rxmax,ri2] = max(rx);
-    [rymin,ri3] = min(ry);
-    [rymax,ri4] = max(ry);
-    if (rxmax - rxmin > 0)
-        p1 = [rxmin, ry(ri1)];
-        p2 = [rxmax, ry(ri2)];
-    else
-        p1 = [rx(ri3), rymin ];
-        p2 = [rx(ri4), rymax ];
-    end
-end
+% function [p1,p2] = findLinePoints(region)
+%     rx = region(:,2);
+%     ry = region(:,1);
+%     [rxmin,ri1] = min(rx);
+%     [rxmax,ri2] = max(rx);
+%     [rymin,ri3] = min(ry);
+%     [rymax,ri4] = max(ry);
+%     if (rxmax - rxmin > 0)
+%         p1 = [rxmin, ry(ri1)];
+%         p2 = [rxmax, ry(ri2)];
+%     else
+%         p1 = [rx(ri3), rymin ];
+%         p2 = [rx(ri4), rymax ];
+%     end
+% end
 
 %Find length of region - assumes straight line - TODO - curve line
-function c = findLength(region, resolution)
-    if(isempty(region))
-        c = 0;
-    else
-        sortedregion = sortrows(region,1);
-        top = sortedregion(1,:);
-        bottom = sortedregion(end,:);
-        x1 = top(1);
-        y1 = top(2);
-        x2 = bottom(1);
-        y2 = bottom(2);
-        V = [x1 y1;x2 y2];
-        c = pdist(V,'euclidean') * resolution;
-    end
-end
+% function c = findLength(region, resolution)
+%     if(isempty(region))
+%         c = 0;
+%     else
+%         sortedregion = sortrows(region,1);
+%         top = sortedregion(1,:);
+%         bottom = sortedregion(end,:);
+%         x1 = top(1);
+%         y1 = top(2);
+%         x2 = bottom(1);
+%         y2 = bottom(2);
+%         V = [x1 y1;x2 y2];
+%         c = pdist(V,'euclidean') * resolution;
+%     end
+% end
 %relative to somacentroid 
-function [theta,rho,deg] = findAngleSoma(x,y,soma,scale)
-        dx = x-soma.centroid(:,1); %x1-x0
-        dy = y-soma.centroid(:,2); %y1-y0
-        theta= atan2(dy,dx); %radians flipped by 180o == pi
-        rho = sqrt(dx.^2 + dy.^2)/scale;
-        deg = radtodeg(theta); 
-        if (deg < 0)
-            deg = deg + 360; %negatives
-        end
-end
+% function [theta,rho,deg] = findAngleSoma(x,y,soma,scale)
+%         dx = x-soma.centroid(:,1); %x1-x0
+%         dy = y-soma.centroid(:,2); %y1-y0
+%         theta= atan2(dy,dx); %radians flipped by 180o == pi
+%         rho = sqrt(dx.^2 + dy.^2)/scale;
+%         deg = radtodeg(theta); 
+%         if (deg < 0)
+%             deg = deg + 360; %negatives
+%         end
+% end
 
 
 % Returns row index matching xy coords
-function fR=findCSVIndex(xC,yC,StartX,StartY,tol)
-    
-    d = 0;
-    fR = find((StartX >= xC-tol) & (StartX <=xC+tol));
-    %if only one val
-    if (isempty(fR))
-        fR = find((StartY >= yC-tol) & (StartY <=yC+tol));
-    end
-    
-    if (~isempty(fR) && (length(fR) > 1))
-        P = [xC,yC]; 
-        T = [StartX(fR) StartY(fR)];
-        u=tol+1;
-        s=0;
-        for i=1:length(T)
-            X = cat(1,P,T(i,:));
-            d = pdist(X,'euclidean');
-            if (d <= tol && u > d)
-                    u = d;
-                    s = fR(i);
-            end
-        end
-        if (s > 0)
-            fR =s;
-        end
-    end
-    %If still empty or multiple
-     if (isempty(fR) || length(fR) > 1)
-         fR = [];
-     end
-    
-end
+% function fR=findCSVIndex(xC,yC,StartX,StartY,tol)
+%     
+%     d = 0;
+%     fR = find((StartX >= xC-tol) & (StartX <=xC+tol));
+%     %if only one val
+%     if (isempty(fR))
+%         fR = find((StartY >= yC-tol) & (StartY <=yC+tol));
+%     end
+%     
+%     if (~isempty(fR) && (length(fR) > 1))
+%         P = [xC,yC]; 
+%         T = [StartX(fR) StartY(fR)];
+%         u=tol+1;
+%         s=0;
+%         for i=1:length(T)
+%             X = cat(1,P,T(i,:));
+%             d = pdist(X,'euclidean');
+%             if (d <= tol && u > d)
+%                     u = d;
+%                     s = fR(i);
+%             end
+%         end
+%         if (s > 0)
+%             fR =s;
+%         end
+%     end
+%     %If still empty or multiple
+%      if (isempty(fR) || length(fR) > 1)
+%          fR = [];
+%      end
+%     
+% end
 
-function d = distanceBetween(A, B, type)
-    d= 0;
-    if (isempty(type))
-        type = 'euclidean';
-    end
-    X = cat(1,A,B);
-    d = pdist(X,type);
-end
+% function d = distanceBetween(A, B, type)
+%     d= 0;
+%     if (isempty(type))
+%         type = 'euclidean';
+%     end
+%     X = cat(1,A,B);
+%     d = pdist(X,type);
+% end
+% 
+% function d = findDistanceToSoma(x,y,startxy,lengthxy)
+%     d = distanceBetween([x,y],startxy,'euclidean');
+%     d = lengthxy - d;
+% end
 
-function d = findDistanceToSoma(x,y,startxy,lengthxy)
-    d = distanceBetween([x,y],startxy,'euclidean');
-    d = lengthxy - d;
-end
-
-function [d,endpoints] = findLength2NeuriteEnd(syn,x,y,T,fR)
-    maxfr = height(T);
-    endxy = [T.EndX(fR), T.EndY(fR)];
-    synxy = [x,y];
-    xpoints = [(x * syn.scale) + syn.shiftx];
-    ypoints = [-((y  * syn.scale) + syn.shifty)];
-    d = distanceBetween(synxy,endxy,'euclidean');
-    while(strcmp(T.PointType(fR),'EP')== 0 && fR < maxfr)
-        d = d + T.Length__m_(fR);
-        %Save points for display
-        xpoints(end+1) = (T.StartX(fR) * syn.scale) + syn.shiftx;
-        ypoints(end+1) = -((T.StartY(fR) * syn.scale) + syn.shifty);
-        fR = fR + 1;
-    end    
-    endpoints =cat(2,xpoints',ypoints');
-end
-
-function [d,points] = findSomaPoints(syn,x,y,T,fR)
-    maxfr = height(T);
-    startxy = [T.StartX(fR), T.StartY(fR)];
-    synxy = [x,y];
-    tree = T.Tree(fR);
-    order = T.Order(fR);
-    cacheTree = tree;
-    cacheOrder = order;
-    %endpoints = {}
-    xpoints = [];
-    ypoints = [];
-    d = distanceBetween(synxy,startxy,'euclidean');
-    cacheStart = T.StartX(fR);
-    while(tree == cacheTree  && fR < maxfr && fR > 0)
-        %check tree and branch order strcmp(T.PointType(fR),'EP')== 0 && 
-        tree = T.Tree(fR);
-        order = T.Order(fR);
-        if (cacheStart == T.EndX(fR) && (order == cacheOrder || order == cacheOrder-1))
-            cacheStart = T.StartX(fR);
-            d = d + T.Length__m_(fR);
-            %Save points for display
-            xpoints(end+1) = (T.StartX(fR) * syn.scale) + syn.shiftx;
-            ypoints(end+1) = -((T.StartY(fR) * syn.scale) + syn.shifty);
-        
-           if (order == cacheOrder-1 )
-                cacheOrder = order;
-           end
-        end
-       fR = fR - 1;
-    end    
-    points =cat(2,xpoints',ypoints');
-end
+% function [d,endpoints] = findLength2NeuriteEnd(syn,x,y,T,fR)
+%     maxfr = height(T);
+%     endxy = [T.EndX(fR), T.EndY(fR)];
+%     synxy = [x,y];
+%     xpoints = [(x * syn.scale) + syn.shiftx];
+%     ypoints = [-((y  * syn.scale) + syn.shifty)];
+%     d = distanceBetween(synxy,endxy,'euclidean');
+%     while(strcmp(T.PointType(fR),'EP')== 0 && fR < maxfr)
+%         d = d + T.Length__m_(fR);
+%         %Save points for display
+%         xpoints(end+1) = (T.StartX(fR) * syn.scale) + syn.shiftx;
+%         ypoints(end+1) = -((T.StartY(fR) * syn.scale) + syn.shifty);
+%         fR = fR + 1;
+%     end    
+%     endpoints =cat(2,xpoints',ypoints');
+% end
+% 
+% function [d,points] = findSomaPoints(syn,x,y,T,fR)
+%     maxfr = height(T);
+%     startxy = [T.StartX(fR), T.StartY(fR)];
+%     synxy = [x,y];
+%     tree = T.Tree(fR);
+%     order = T.Order(fR);
+%     cacheTree = tree;
+%     cacheOrder = order;
+%     %endpoints = {}
+%     xpoints = [];
+%     ypoints = [];
+%     d = distanceBetween(synxy,startxy,'euclidean');
+%     cacheStart = T.StartX(fR);
+%     while(tree == cacheTree  && fR < maxfr && fR > 0)
+%         %check tree and branch order strcmp(T.PointType(fR),'EP')== 0 && 
+%         tree = T.Tree(fR);
+%         order = T.Order(fR);
+%         if (cacheStart == T.EndX(fR) && (order == cacheOrder || order == cacheOrder-1))
+%             cacheStart = T.StartX(fR);
+%             d = d + T.Length__m_(fR);
+%             %Save points for display
+%             xpoints(end+1) = (T.StartX(fR) * syn.scale) + syn.shiftx;
+%             ypoints(end+1) = -((T.StartY(fR) * syn.scale) + syn.shifty);
+%         
+%            if (order == cacheOrder-1 )
+%                 cacheOrder = order;
+%            end
+%         end
+%        fR = fR - 1;
+%     end    
+%     points =cat(2,xpoints',ypoints');
+% end
       

@@ -383,7 +383,7 @@ function btnIdentify_Callback(hObject, eventdata, handles)
 % hObject    handle to btnIdentify (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-clearplots();
+%clearplots();
 % Get grayscale img
 h = findobj('Tag','btnBrowser');
 %data = h.UserData;
@@ -446,7 +446,7 @@ step = 10;
 waitbar(step / steps)
 %show figs
 axes(handles.axes2);
-cla;
+%cla;
 %Run analyser
 N = NeuritesAnalyser(data.inputfile,roi,data.cell1,data.cell2);
 
@@ -614,6 +614,54 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
     end
     %hObject.UserData = data;
     set(hObject,'UserData',data);
+    if (isfield(data,'cell1file') && isfield(data,'cell2file'))
+         msgbox('CSV files loaded. Run configuration with Register CSV.')
+    end
+    
+    % --- Executes on button press in btnAnalysisFiles2.
+function btnAnalysisFiles2_Callback(hObject, eventdata, handles)
+% hObject    handle to btnAnalysisFiles (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    fileTypes = {  '*.csv', 'CSV' };
+    hCf2 = findobj('Tag', 'editCell2');
+    cell2ID=get(hCf2,'String');% 'SBAC';
+    if (iscell(cell2ID))
+        cell2ID = strjoin(cell2ID);
+    end
+    hcsv1 = findobj('Tag','btnAnalysisFiles');
+    hfiles = findobj('Tag','btnBrowser');
+    %hfdata = hfiles.UserData;
+    hfdata = get(hfiles,'UserData');
+    csvPath = hfdata.imagePath;
+    [csvFile, csvPath, ~] = ...
+      uigetfile(fileTypes, ...
+		'Select analysis files', ...
+		'MultiSelect', 'off',csvPath);
+    cell2 = csvFile;
+    set(handles.editAnalysisfiles2,'string',csvFile);
+    csv2 = fullfile(csvPath, csvFile);
+    status = sprintf('Cell 2: %s', csv2);
+    updateStatus(handles,status);
+    %Check CSV headers
+    hdrs = 'Tree,Order,StartX,StartY,StartZ,EndX,EndY,EndZ,PointType,Length(µm),LengthToBeginning(µm)';
+    r1 = checkHeaders(csv2,hdrs);
+    if (length(r1) > 1)
+        errhdr = sprintf('ERROR: CSV file headers need to match: %s. \nFields incorrect:%s %s', hdrs,r1);
+        errordlg(errhdr,'CSV Files error')
+        return 
+    end
+    %save to userdata
+    data = get(hObject,'UserData');
+    if (isempty(data))
+        data = struct('csvPath2', csvPath, 'cell2file', cell2, 'cell2ID',cell2ID);
+    else
+        data.csvPath = csvPath;
+        data.cell2file = cell2;
+        data.cell2ID = cell2ID;
+    end
+    %hObject.UserData = data;
+    set(hcsv1,'UserData',data);
     if (isfield(data,'cell1file') && isfield(data,'cell2file'))
          msgbox('CSV files loaded. Run configuration with Register CSV.')
     end
@@ -1246,6 +1294,12 @@ function figure1_CloseRequestFcn(hObject, eventdata, handles)
 % Hint: delete(hObject) closes the figure
 delete(hObject);
 
-
+function clearplots(source,callbackdata)
+    cla;
+    h = findobj('Tag','btnBrowser');
+    hData = get(h,'UserData');
+    I = hData.img;
+    %f = figure('WindowStyle','normal');
+    im = imshow(I);
 
  
