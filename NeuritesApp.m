@@ -32,7 +32,8 @@ function NeuritesApp()
   feature('accel',0)
   %add paths
   addpath(pwd)
-  addpath('./methods')
+  subd = fullfile(pwd, 'methods');
+  addpath(subd)
   % Select application to run
   choice = questdlg('Select Application to run', ...
 	'Neurites analysis app', ...

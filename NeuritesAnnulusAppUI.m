@@ -24,7 +24,7 @@ function varargout = NeuritesAnnulusAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAnnulusAppUI
 
-% Last Modified by GUIDE v2.5 13-Sep-2016 15:51:54
+% Last Modified by GUIDE v2.5 14-Sep-2016 17:50:36
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -272,8 +272,8 @@ saveas(handles.figure1, fullfile(pathname, 'neurites_img.png'));
 
 
 % --------------------------------------------------------------------
-function Menu_LoadMask_Callback(hObject, eventdata, handles)
-% hObject    handle to Menu_LoadMask (see GCBO)
+function Menu_LoadAnnulusMask_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_LoadAnnulusMask (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
@@ -286,7 +286,7 @@ imagePath = hfdata.imagePath;
     'MultiSelect', 'off',imagePath);
 inputPath = fullfile(imagePath,imageFile);
 I = imread(inputPath);
-updateStatus(handles,'Mask loaded from file');
+updateStatus(handles,'Annulus Mask loaded from file');
 hfdata.roi_I=I;
 
 %colors=['b' 'g' 'r' 'c' 'm' 'y'];
@@ -314,6 +314,52 @@ N = hfdata.analyser;
 N = N.loadMask(I);
 %imshow(N.maskedI);
 hfdata.analyser = N;
+hfdata.roi = 'annulus';
+set(hB,'UserData',hfdata);
+
+function Menu_LoadRectangleMask_Callback(hObject, eventdata, handles)
+% hObject    handle to Menu_LoadAnnulusMask (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+fileTypes = {  '*.tif;*.tiff;*.jpg;*.jpeg', 'Tiff/JPG images' };
+hB = findobj('Tag', 'menu_File_loadimage');
+hfdata = get(hB,'UserData');
+imagePath = hfdata.imagePath;
+[imageFile, imagePath, ~] = ...
+  uigetfile(fileTypes, ...
+    'Select mask image', ...
+    'MultiSelect', 'off',imagePath);
+inputPath = fullfile(imagePath,imageFile);
+I = imread(inputPath);
+updateStatus(handles,'Rectangle Mask loaded from file');
+hfdata.roi_I=I;
+
+%colors=['b' 'g' 'r' 'c' 'm' 'y'];
+[B,L,N,A] = bwboundaries(I);
+%display roi
+axes(handles.axes1);
+hold on;
+for k=1:length(B),
+  boundary = B{k};
+  xi = boundary(:,2);
+  yi = boundary(:,1);
+  plot(xi,yi,'b--','LineWidth',1);
+end
+
+hold off;
+hfdata.roi_xy = B
+%save ROI as standard file (overwrites)
+roifile = fullfile(hfdata.imagePath, 'neurites_rectangle.tif');
+if ~exist(roifile, 'file') == 2
+    imwrite(I, roifile);
+    hfdata.roifile = roifile;
+end
+%generate masked image
+N = hfdata.analyser;
+N = N.loadMask(I);
+%imshow(N.maskedI);
+hfdata.analyser = N;
+hfdata.roi = 'rect';
 set(hB,'UserData',hfdata);
 
 % --------------------------------------------------------------------
@@ -596,8 +642,7 @@ if (get(hObject,'Value') > 0)
     data = get(h,'UserData');
     hScale = findobj('Tag','editScale');
     scale = str2double(get(hScale,'String'));
-    hRoi = findobj('Tag','editScale');
-    scale = str2double(get(hScale,'String'));
+    
      
     if (isnan(od) || isnan(id))
         msgbox('Error: Please enter OD and ID values first');
@@ -613,6 +658,7 @@ if (get(hObject,'Value') > 0)
         status = sprintf('Annulus mask created: %s.', roifile);
         %Update analyser data
         data.analyser = N;
+        data.roi = 'annulus';
         set(h,'UserData',data);
         updateStatus(handles,status);
         disp(status)
@@ -640,6 +686,9 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         Shiftx = str2num(get(hX,'String'));
         hY = findobj('Tag','editShifty');
         Shifty = str2num(get(hY,'String'));
+        hW = findobj('Tag','editDirection');
+        direction = get(hW,'String');
+        
         hOD = findobj('Tag','editOD');
         od = str2double(get(hOD,'String'));
         hAL = findobj('Tag','editLength');
@@ -658,10 +707,14 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         else
             single = 0;
         end
-        if (~isempty(data.roi) && data.roi =='annulus')
-            
+        if (~isempty(data.roi) && strcmp(data.roi,'annulus')>0)
             [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, single, CSVFile);
-        
+        elseif (~isempty(data.roi) && strcmp(data.roi,'rect')>0)
+            [annulus_area,neurites_area,regionMap] = analyseRectangle(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, direction, single, CSVFile);
+        else
+            msgbox('Please create Annulus or Rectangle mask first')
+            return
+        end
         N.Regions = regionMap;
         %Generate table
         arcs = keys(regionMap)
@@ -1308,3 +1361,30 @@ else
     hfdata.roi = 'annulus';
 end
 set(hfiles,'UserData', hfdata);
+
+
+
+% --- Executes on selection change in choiceDirection.
+function choiceDirection_Callback(hObject, eventdata, handles)
+% hObject    handle to choiceDirection (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns choiceDirection contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from choiceDirection
+
+
+% --- Executes during object creation, after setting all properties.
+function choiceDirection_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to choiceDirection (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+   
+    
+end
+
