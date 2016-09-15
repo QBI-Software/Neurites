@@ -41,12 +41,12 @@ function [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale, Shiftx,S
         [B,~] = bwboundaries(im1,4,'noholes');
         idx = mod(i,length(colors)-1);
         color = colors(idx+1);
-        N = countNeurites(im1,1,color);
+        countNeurites(im1,1,color);
         %show region boundary
-        no = countNeurites(m1,1,color);
+        countNeurites(m1,1,color);
         
         %Identify neurites and Save data
-        n = NeuritesStimulusRegion(a(i), A, arclength, NA, B, color);
+        n = NeuritesStimulusRegion(i,a(i), A, arclength, NA, B, color, 'annulus');
         n = n.analyseBoundaries(Scale, Shiftx,Shifty,CSVFile);
         stimregions{i} = n;
        % waitbar(i/steps);

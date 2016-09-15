@@ -3,6 +3,7 @@ classdef NeuritesStimulusRegion
     %   Segment of annulus
     
     properties
+        id
         midline         %midline of stim region (degrees)
         slength         %length of stim region arc (degrees)
         sarea           %area of stim region (px2)
@@ -13,16 +14,19 @@ classdef NeuritesStimulusRegion
         scale
         shiftx
         shifty
+        type
     end
     
     methods
-        function obj = NeuritesStimulusRegion(midline, sarea, slength, neuritesarea, boundaries, color)
+        function obj = NeuritesStimulusRegion(id, midline, sarea, slength, neuritesarea, boundaries, color, type)
+            obj.id = id;
             obj.midline = midline;
             obj.slength = slength;
             obj.sarea = sarea;
             obj.narea = neuritesarea;
             obj.boundaries = boundaries;
-            obj.color = color;       
+            obj.color = color;  
+            obj.type = type;
         end
         function obj = setScale(obj, scale,shiftx,shifty)
             obj.scale = scale;
@@ -49,7 +53,7 @@ classdef NeuritesStimulusRegion
                 [xC2, yC2]= obj.img2Coords(maxp(1),maxp(2));
                 iterate = 5; %May need to adjust fit param to find CSV data (depends on how well overlaid)
                 for j = 1:iterate
-                    fR=findCSVIndex(xC,yC,CSVfile.StartX,CSVfile.StartY,fit)
+                    fR=findCSVIndex(xC,yC,CSVfile.StartX,CSVfile.StartY,fit);
                     if (isempty(fR))
                         fit = fit + 2;
                     else

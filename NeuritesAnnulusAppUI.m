@@ -290,7 +290,7 @@ updateStatus(handles,'Annulus Mask loaded from file');
 hfdata.roi_I=I;
 
 %colors=['b' 'g' 'r' 'c' 'm' 'y'];
-[B,L,N,A] = bwboundaries(I);
+[B,~,~,~] = bwboundaries(I);
 %display roi
 axes(handles.axes1);
 hold on;
@@ -686,8 +686,10 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         Shiftx = str2num(get(hX,'String'));
         hY = findobj('Tag','editShifty');
         Shifty = str2num(get(hY,'String'));
-        hW = findobj('Tag','editDirection');
-        direction = get(hW,'String');
+        hW = findobj('Tag','choiceDirection');
+        d1 = get(hW,'UserData');
+        direction = lower(d1(get(hW,'Value')));
+        direction = direction{1}; %string from cellstr
         
         hOD = findobj('Tag','editOD');
         od = str2double(get(hOD,'String'));
@@ -710,7 +712,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         if (~isempty(data.roi) && strcmp(data.roi,'annulus')>0)
             [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, single, CSVFile);
         elseif (~isempty(data.roi) && strcmp(data.roi,'rect')>0)
-            [annulus_area,neurites_area,regionMap] = analyseRectangle(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, direction, single, CSVFile);
+            [annulus_area,neurites_area,regionMap] = analyseRectangle(Scale,Shiftx,Shifty,N, direction, single, CSVFile);
         else
             msgbox('Please create Annulus or Rectangle mask first')
             return
@@ -727,16 +729,21 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
             for j = 1:numel(n.neurites)
                 k = k+1
                 neurite = n.neurites(j)
-                lineStruct(k,1).ArcMidline = n.midline;             %midline of arc in degrees eg 45o
-                lineStruct(k,1).ArcLength = n.slength;              %length of arc in degrees eg 45o
-                lineStruct(k,1).ArcArea = n.sarea/Scale;            %area of arc (um2) 
+                lineStruct(k,1).ROI = n.id;                         %ID of ROI
+                lineStruct(k,1).ROIPosition = n.midline;            %top left x position OR midline of arc in degrees eg 45o
+                lineStruct(k,1).ROILength = n.slength;              %length of arc in degrees eg 45o
+                lineStruct(k,1).ROIArea = n.sarea/Scale;            %area of arc (um2) 
                 lineStruct(k,1).Length = n.neurites(j).nlength;     %length from min to max points (should be total neurite segment length) (um)                
                 lineStruct(k,1).SomaDist = n.neurites(j).somad;     %furthest distance back to soma (um) ie maxpoint
                 lineStruct(k,1).SomaVol = n.neurites(j).somav;      %Volume of dendrite back to soma (um3) ie maxpoint
                 lineStruct(k,1).SomaSA = n.neurites(j).somas;       %SA of dendrite back to soma (um2) ie maxpoint
                 lineStruct(k,1).Tree = n.neurites(j).tree;          %tree number of this neurite
-                lineStruct(k,1).Branch = n.neurites(j).branch;      %branch number/s of this neurite
-                %lineStruct(k,1).CSVRow = n.neurites(j).crow;        %corresponding row number in CSV
+                if (length(n.neurites(j).branch) == 1)
+                    lineStruct(k,1).Branch = n.neurites(j).branch;  %first branch number/s of this neurite
+                else
+                    lineStruct(k,1).Branch = n.neurites(j).branch(1);
+                end
+                lineStruct(k,1).CSVRow = n.neurites(j).crow;        %corresponding row number in CSV
                 %lineStruct(k,1).Color = n.color; 
             end
         end
@@ -746,7 +753,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         htable = findobj('Tag','uitableResults');
         % Data must be a numeric, logical, or cell array
         %colnames = {'ArcMidline' 'Area' 'Tree' 'Branch' 'Length' 'NArea' 'Somax'};
-        set(htable,'data',[T.ArcMidline, T.ArcLength,T.ArcArea,T.Length,T.SomaDist,T.SomaVol,T.SomaSA,T.Tree],'ColumnName',colnames(1:8));
+        set(htable,'data',[T.ROI, T.ROIPosition, T.ROILength,T.ROIArea,T.Length,T.SomaDist,T.SomaVol,T.SomaSA,T.Tree, T.Branch, T.CSVRow],'ColumnName',colnames);
         
         pathname = data.imagePath;
         %save to file
