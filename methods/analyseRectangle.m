@@ -71,10 +71,10 @@ function [roi_area,neurites_area,regionMap] = analyseRectangle(Scale, Shiftx,Shi
         switch direction
             case {'up', 'down'}
                 stats.BoundingBox(2) = a(i);%stats.BoundingBox(2)-rheight
-                L = rheight;
+                L = rheight/scale;
             case {'left', 'right'}
                 stats.BoundingBox(1) = a(i);
-                L = rwidth;
+                L = rwidth/scale;
         end
         %Calculate mask for segment
         idx = mod(i,length(colors)-1);
@@ -94,15 +94,15 @@ function [roi_area,neurites_area,regionMap] = analyseRectangle(Scale, Shiftx,Shi
         A= bwarea(m1)/scale;
         NA= bwarea(im1)/scale;
         imshow(im1)
-        [B,~] = bwboundaries(im1,4,'noholes');
+        %[B,~] = bwboundaries(im1,4,'noholes');
         %show neurites
         countNeurites(im1,1,color);
         %show region boundary
         countNeurites(m1,1,color);
         
         %Identify neurites and Save data (id, midline, sarea, slength, neuritesarea, boundaries, color, type)
-        n = NeuritesStimulusRegion(i, a(i), A, L, NA, B, color,'rect');
-        n = n.analyseBoundaries(Scale, Shiftx,Shifty,CSVFile);
+        n = NeuritesStimulusRegion(i, a(i), A, L, NA, im1, color,'rect');
+        n = n.analyseROI(Scale, Shiftx,Shifty,CSVFile);
         stimregions{i} = n;
        % waitbar(i/steps);
     end

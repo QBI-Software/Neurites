@@ -203,13 +203,16 @@ function menu_File_loadimage_Callback(hObject, eventdata, handles)
     %Clear configuration
     clearConfig(getProgramtype, 0);
     clearCSVdata(getProgramtype);
-    %Directions
-    updateStatus(handles,'Image loaded.');
+    %clearROI( handles );
     %Save image analyser
     N = NeuritesAnnulusAnalyser(I); 
     %save image data
     data = struct('img',I, 'imagePath',imagePath,'inputfile', inputPath, 'analyser', N);
-    set(hObject,'UserData',data); 
+    set(hObject,'UserData',data);  
+    %Notification
+    updateStatus(handles,'Image loaded.');
+    msgbox('Image loaded. Now load CSV file.')
+    
 
 % --------------------------------------------------------------------
 function Menu_File_loadcsv_Callback(hObject, eventdata, handles)
@@ -732,18 +735,21 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
                 lineStruct(k,1).ROI = n.id;                         %ID of ROI
                 lineStruct(k,1).ROIPosition = n.midline;            %top left x position OR midline of arc in degrees eg 45o
                 lineStruct(k,1).ROILength = n.slength;              %length of arc in degrees eg 45o
-                lineStruct(k,1).ROIArea = n.sarea/Scale;            %area of arc (um2) 
-                lineStruct(k,1).Length = n.neurites(j).nlength;     %length from min to max points (should be total neurite segment length) (um)                
-                lineStruct(k,1).SomaDist = n.neurites(j).somad;     %furthest distance back to soma (um) ie maxpoint
-                lineStruct(k,1).SomaVol = n.neurites(j).somav;      %Volume of dendrite back to soma (um3) ie maxpoint
-                lineStruct(k,1).SomaSA = n.neurites(j).somas;       %SA of dendrite back to soma (um2) ie maxpoint
+                lineStruct(k,1).ROIArea = n.sarea;                  %area of arc (um2) 
+                lineStruct(k,1).CSVRow = n.neurites(j).crow;        %corresponding row number in CSV
+                
                 lineStruct(k,1).Tree = n.neurites(j).tree;          %tree number of this neurite
                 if (length(n.neurites(j).branch) == 1)
                     lineStruct(k,1).Branch = n.neurites(j).branch;  %first branch number/s of this neurite
                 else
                     lineStruct(k,1).Branch = n.neurites(j).branch(1);
                 end
-                lineStruct(k,1).CSVRow = n.neurites(j).crow;        %corresponding row number in CSV
+                lineStruct(k,1).SomaDist = n.neurites(j).somad;     %distance back to soma (um) ie maxpoint
+                lineStruct(k,1).SomaVol = n.neurites(j).somav;      %Volume of dendrite back to soma (um3) ie maxpoint
+                lineStruct(k,1).SomaSA = n.neurites(j).somas;       %SA of dendrite back to soma (um2) ie maxpoint
+                lineStruct(k,1).Length = n.neurites(j).nlength;     %length from min to max points (should be total neurite segment length) (um)                
+                lineStruct(k,1).X = n.neurites(j).xy(1);
+                lineStruct(k,1).Y = n.neurites(j).xy(2);
                 %lineStruct(k,1).Color = n.color; 
             end
         end
@@ -753,7 +759,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         htable = findobj('Tag','uitableResults');
         % Data must be a numeric, logical, or cell array
         %colnames = {'ArcMidline' 'Area' 'Tree' 'Branch' 'Length' 'NArea' 'Somax'};
-        set(htable,'data',[T.ROI, T.ROIPosition, T.ROILength,T.ROIArea,T.Length,T.SomaDist,T.SomaVol,T.SomaSA,T.Tree, T.Branch, T.CSVRow],'ColumnName',colnames);
+        set(htable,'data',[T.ROI,T.ROIPosition,T.ROILength,T.ROIArea,T.CSVRow,T.Tree,T.Branch,T.SomaDist,T.SomaVol,T.SomaSA,T.Length,T.X,T.Y],'ColumnName',colnames);
         
         pathname = data.imagePath;
         %save to file
