@@ -693,7 +693,8 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         d1 = get(hW,'UserData');
         direction = lower(d1(get(hW,'Value')));
         direction = direction{1}; %string from cellstr
-        
+        hID = findobj('Tag','editID');
+        id = str2double(get(hID,'String'));
         hOD = findobj('Tag','editOD');
         od = str2double(get(hOD,'String'));
         hAL = findobj('Tag','editLength');
@@ -713,7 +714,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
             single = 0;
         end
         if (~isempty(data.roi) && strcmp(data.roi,'annulus')>0)
-            [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N.Iroi, N.maskedI, N.soma.centroid, (od * Scale)/2, midline, arclength, single, CSVFile);
+            [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N, (od * Scale)/2,(id * Scale)/2, midline, arclength, single, CSVFile);
         elseif (~isempty(data.roi) && strcmp(data.roi,'rect')>0)
             [annulus_area,neurites_area,regionMap] = analyseRectangle(Scale,Shiftx,Shifty,N, direction, single, CSVFile);
         else
@@ -744,12 +745,13 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
                 else
                     lineStruct(k,1).Branch = n.neurites(j).branch(1);
                 end
-                lineStruct(k,1).SomaDist = n.neurites(j).somad;     %distance back to soma (um) ie maxpoint
-                lineStruct(k,1).SomaVol = n.neurites(j).somav;      %Volume of dendrite back to soma (um3) ie maxpoint
-                lineStruct(k,1).SomaSA = n.neurites(j).somas;       %SA of dendrite back to soma (um2) ie maxpoint
+                lineStruct(k,1).BranchLength = n.neurites(j).blength;
                 lineStruct(k,1).Length = n.neurites(j).nlength;     %length from min to max points (should be total neurite segment length) (um)                
                 lineStruct(k,1).X = n.neurites(j).xy(1);
                 lineStruct(k,1).Y = n.neurites(j).xy(2);
+                lineStruct(k,1).SomaDist = n.neurites(j).somad;     %distance back to soma (um) from x,y
+                %lineStruct(k,1).SomaVol = n.neurites(j).somav;      %Volume of dendrite back to soma (um3) ie maxpoint
+                %lineStruct(k,1).SomaSA = n.neurites(j).somas;       %SA of dendrite back to soma (um2) ie maxpoint
                 %lineStruct(k,1).Color = n.color; 
             end
         end
@@ -759,7 +761,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         htable = findobj('Tag','uitableResults');
         % Data must be a numeric, logical, or cell array
         %colnames = {'ArcMidline' 'Area' 'Tree' 'Branch' 'Length' 'NArea' 'Somax'};
-        set(htable,'data',[T.ROI,T.ROIPosition,T.ROILength,T.ROIArea,T.CSVRow,T.Tree,T.Branch,T.SomaDist,T.SomaVol,T.SomaSA,T.Length,T.X,T.Y],'ColumnName',colnames);
+        set(htable,'data',[T.ROI,T.ROIPosition,T.ROILength,T.ROIArea,T.CSVRow,T.Tree,T.Branch,T.BranchLength,T.Length,T.X,T.Y,T.SomaDist],'ColumnName',colnames);
         
         pathname = data.imagePath;
         %save to file

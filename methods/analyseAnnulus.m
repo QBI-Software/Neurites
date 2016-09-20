@@ -1,9 +1,14 @@
-function [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale, Shiftx,Shifty,mask, maskedImage, centroid, radius,midline,arclength,single,CSVFile )
+function [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale, Shiftx,Shifty,N, outer_radius,inner_radius,midline,arclength,single,CSVFile )
     % Whole annulus, then partition via set arc length at different angles
-    % Get masked image
-    imshow(maskedImage); 
+    %Load analyser: N.Iroi, N.maskedI, N.soma.centroid,N = N.loadMask(I);
+    mask = N.Iroi;
+    maskedImage = N.maskedI;
+    centroid = N.soma.centroid;
+    %Load DigiNeuron 
     hold on;
     scale = Scale * Scale;
+    neuron = loadCSVTree(CSVFile,N.soma,Scale);
+    sprintf('Loaded neuron with %d trees', length(neuron));
     % Calculate full annulus area
     mask_area = bwarea(mask)
     annulus_area= bwarea(maskedImage) %Total On pixels
@@ -31,23 +36,31 @@ function [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale, Shiftx,S
         im1 = im2;
         %Arc(i+1) = a(i);
         %Calculate mask for segment
-        P = plotArc(a(i),arclength, centroid(1),centroid(2),radius);
+        P = plotArc(a(i),arclength, centroid(1),centroid(2),outer_radius);
         p1 = poly2mask(P.XData,P.YData,h,w);
         im1(~p1)=0;
         m1(~p1)=0;
         A= bwarea(m1)/scale;
         NA= bwarea(im1)/scale;
         imshow(im1)
-        [B,~] = bwboundaries(im1,4,'noholes');
+        %[B,~] = bwboundaries(im1,4,'noholes');
         idx = mod(i,length(colors)-1);
         color = colors(idx+1);
-        countNeurites(im1,1,color);
+        %countNeurites(im1,1,color);
         %show region boundary
-        countNeurites(m1,1,color);
+        %countNeurites(m1,1,color);
+        % determine boundaries
+        %[B,L,N,A] = bwboundaries(m1,4,'noholes');
+        %Border points
+        pary = [P.XData P.YData];  
         
         %Identify neurites and Save data
-        n = NeuritesStimulusRegion(i,a(i), A, arclength, NA, B, color, 'annulus');
-        n = n.analyseBoundaries(Scale, Shiftx,Shifty,CSVFile);
+        [dcache,FR] = findCSVdata(CSVFile,Scale,Shiftx,Shifty,pary,P.XData, P.YData,color)
+        n = NeuritesStimulusRegion(i, a(i), A, arclength, NA, im1, color,'annulus',neuron);
+        %n = NeuritesStimulusRegion(i,a(i), A, arclength, NA, B, color, 'annulus');
+        %n = n.analyseBoundaries(Scale, Shiftx,Shifty,CSVFile);
+        n = n.setScale(Scale, Shiftx,Shifty);
+        n = n.analyseROI(CSVFile,FR,dcache);
         stimregions{i} = n;
        % waitbar(i/steps);
     end

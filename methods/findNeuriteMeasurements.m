@@ -22,7 +22,6 @@ function [d,v,s,endpoints, branchpoints] = findNeuriteMeasurements(syn,x,y,final
         %Save points for display
         endx = (T.StartX(fR) * syn.scale) + syn.shiftx;
         endy = -((T.StartY(fR) * syn.scale) + syn.shifty);
-        
         if (finalxy(1) > endx && finalxy(2) > endy)
             xpoints(end+1)=endx;
             ypoints(end+1)=endy;

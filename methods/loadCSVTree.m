@@ -4,7 +4,11 @@ function neuron = loadCSVTree( csvdata, soma, scale )
 % 1. Extract branch data per tree/branch order from csv
 % 2. Determine orientation of branch as key (degrees)
 % 3. List branches in order of order and location
-CSV = readtable(csvdata);
+if (isstr(csvdata))
+    CSV = readtable(csvdata);
+else
+    CSV = csvdata
+end
 t = unique(CSV.Tree);
 %u = unique(CSV.Order); %COUNT NUMBER ep AND bp
 neuron = cell(length(t),1);
@@ -18,6 +22,8 @@ for j=1:length(t)
     bvol = 0;
     bsa = 0;
     points =[];
+    xpoints=[];
+    ypoints=[];
     atypes=[];
     n0 = []; %parentnode
     idx = 1; %initial 
@@ -29,12 +35,19 @@ for j=1:length(t)
         blength = blength + CSV.Length__m_(i);
         bvol = bvol + CSV.Volume__m__(i);
         bsa = bsa + CSV.SurfaceArea__m__(i);
+        xpoints(end+1)=CSV.StartX(i);
+        ypoints(end+1)=CSV.StartY(i);
         if (strcmp(btype, 'CP')==0)
             bradians = findAngleSoma(CSV.StartX(i),CSV.StartY(i),soma,scale);
             bangle = radtodeg(abs(bradians));
+            xpoints(end+1)=CSV.EndX(i);
+            ypoints(end+1)=CSV.EndY(i);
+            points =cat(2,xpoints',ypoints');
             n = NeuritesNode(bid,blength,btype,order,bcount);
             n = n.setMeasurements(bangle,bvol,bsa,blength,points)
-            
+            points =[];
+            xpoints=[];
+            ypoints=[];
             if (~isempty(n0) && isa(n0,'NeuritesNode'))
                     %%TODO: set root node to parent of this node
                     if (n0.nodelevel ~= n.nodelevel -1)
