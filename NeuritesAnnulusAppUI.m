@@ -714,9 +714,9 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
             single = 0;
         end
         if (~isempty(data.roi) && strcmp(data.roi,'annulus')>0)
-            [annulus_area,neurites_area,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N, (od * Scale)/2,(id * Scale)/2, midline, arclength, single, CSVFile);
+            [status,regionMap] = analyseAnnulus(Scale,Shiftx,Shifty,N, (od * Scale)/2,(id * Scale)/2, midline, arclength, single, CSVFile);
         elseif (~isempty(data.roi) && strcmp(data.roi,'rect')>0)
-            [annulus_area,neurites_area,regionMap] = analyseRectangle(Scale,Shiftx,Shifty,N, direction, single, CSVFile);
+            [status,regionMap] = analyseRectangle(Scale,Shiftx,Shifty,N, direction, single, CSVFile);
         else
             msgbox('Please create Annulus or Rectangle mask first')
             return
@@ -779,7 +779,7 @@ function btnAnalysis_Callback(hObject, eventdata, handles)
         else
             writetable(T,outputfile);
         end
-        status = sprintf('Analysis complete. Total neurites/annulus area: %d percent. Table written to %s',(neurites_area/annulus_area)*100, outputfile);
+        status = sprintf('Analysis complete. %s. Table written to %s',status, outputfile);
         updateStatus(handles,status);
     else
         msgbox('Create Annulus mask first');

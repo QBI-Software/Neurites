@@ -1,4 +1,4 @@
-function [roi_area,neurites_area,regionMap] = analyseRectangle(Scale, Shiftx,Shifty,N, direction,single,CSVFile )
+function [status,regionMap] = analyseRectangle(Scale, Shiftx,Shifty,N, direction,single,CSVFile )
     %Load analyser: N.Iroi, N.maskedI, N.soma.centroid,N = N.loadMask(I);
     mask = N.Iroi;
     maskedImage = N.maskedI;
@@ -10,9 +10,12 @@ function [roi_area,neurites_area,regionMap] = analyseRectangle(Scale, Shiftx,Shi
     hold on;
     scale = Scale * Scale;
     % Calculate full rectangle area
-    mask_area = bwarea(mask)
-    roi_area= bwarea(maskedImage) %Total On pixels
-    neurites_area = (mask_area - roi_area) %neurites only
+    mask_area = bwarea(mask);
+    roi_area= bwarea(maskedImage); %Total On pixels
+    neurites_area = (mask_area - roi_area); %neurites only
+    status = sprintf('Annulus with total %0.2f um2 containing neurites of %0.2f um2 (%0.5f percentage)', ...
+        roi_area/scale, neurites_area/scale, neurites_area/roi_area);
+    disp(status)
     %remove annulus
     %im2 = mask - maskedImage;
     %get params from mask
@@ -106,7 +109,7 @@ function [roi_area,neurites_area,regionMap] = analyseRectangle(Scale, Shiftx,Shi
         pary = [pleft pright ptop pbottom];      
 
         %Find and analyse CSV data
-        [dcache,FR] = findCSVdata(CSVFile,Scale,Shiftx,Shifty,pary,xdata,ydata,color)
+        [dcache,FR] = findCSVdata(CSVFile,Scale,Shiftx,Shifty,pary,xdata,ydata,color);
         %Identify neurites and Save data (id, midline, sarea, slength, neuritesarea, boundaries, color, type)
         n = NeuritesStimulusRegion(i, a(i), A, L, NA, im1, color,'rect',neuron);
         n = n.setScale(Scale, Shiftx,Shifty);

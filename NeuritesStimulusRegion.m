@@ -45,42 +45,44 @@ classdef NeuritesStimulusRegion
             
             k=1;
             while k<=length(FR)
-                fR = FR(k)
+                fR = FR(k);
+                obj.neurites(idx,1).crow = fR;
+                xC = CSVfile.StartX(fR);
+                yC = CSVfile.StartY(fR);
+                prelength = 0;
                 if (fR <= length(dcache) && isfield(dcache(fR),'begin') && ~isempty(dcache(fR).begin))
-                    xC= dcache(fR).begin(1);
-                    yC= dcache(fR).begin(2);
-                else
-                    xC = CSVfile.StartX(fR);
-                    yC = CSVfile.StartY(fR);
+                    [beginx,beginy] = obj.img2Coords(dcache(fR).begin(1),dcache(fR).begin(2));
+                    prelength = pdist2([beginx,beginy],[xC,yC]);
                 end
-                %dsoma = CSVfile.LengthToBeginning__m_(fR);
-                [dsoma,vsoma,ssoma,somapoints] = findSomaMeasurePoints(obj,xC,yC,CSVfile,fR);
-                tree = CSVfile.Tree(fR);
-                branch = CSVfile.Order(fR);
+                dsoma = CSVfile.LengthToBeginning__m_(fR);
+                %[dsoma,vsoma,ssoma,somapoints] = findSomaMeasurePoints(obj,xC,yC,CSVfile,fR);
+                dsoma = dsoma - prelength
+                tree = CSVfile.Tree(fR)
+                branch = CSVfile.Order(fR)
                 branchlength = obj.findBranchlength(tree,branch,xC,yC)
-                len1 = 0;
+                len = 0;
                 %find end xy 
                 while(fR<max(FR) && tree == CSVfile.Tree(fR) && branch== CSVfile.Order(fR))
-                    len1 = len1 + CSVfile.Length__m_(fR);
+                    len = len + CSVfile.Length__m_(fR);
                     k = k+1;
                     fR = FR(k);
                 end
                 k = k+1;
+                postlength=0;
                 if (fR <= length(dcache) && isfield(dcache(fR),'end') && ~isempty(dcache(fR).end))
-                    endxy = dcache(fR).end
-                else
-                    endxy = [CSVfile.EndX(fR),CSVfile.EndY(fR)]
+                    [endx,endy] = obj.img2Coords(dcache(fR).end(1),dcache(fR).end(2));  
+                    postlength = pdist2([endx,endy],[CSVfile.EndX(fR),CSVfile.EndY(fR)]);
                 end
-                [len,vol,area,endpoints,branchpoints] = findNeuriteMeasurements(obj,xC,yC,endxy,CSVfile,fR);
-                
-                obj.neurites(idx,1).crow = fR;
+                %[len,vol,area,endpoints,branchpoints] = findNeuriteMeasurements(obj,xC,yC,endxy,CSVfile,fR);
+                len = len + prelength + postlength
+                %obj.neurites(idx,1).crow = fR;
                 obj.neurites(idx,1).tree = tree;
                 obj.neurites(idx,1).branch = branch;
                 obj.neurites(idx,1).blength = branchlength;
                 obj.neurites(idx,1).nlength = len;
                 %obj.neurites(idx,1).nvol = vol;
                 %obj.neurites(idx,1).nsa = area;
-                obj.neurites(idx,1).npoints = endpoints;        %points to end of neurite for overlay
+                %obj.neurites(idx,1).npoints = endpoints;        %points to end of neurite for overlay
                 obj.neurites(idx,1).xy = [xC,yC];              %searched coordinates
                 obj.neurites(idx,1).somad = dsoma;
                 %obj.neurites(idx,1).somav = vsoma;
@@ -110,7 +112,7 @@ classdef NeuritesStimulusRegion
                 for i=1:length(node)
                     n = node(i,1)
                     p = pdist2([xC yC],n.points);
-                    [r,c] = find(p < 10) %C IS IDX OF N.points matching
+                    [r,c] = find(p < 10); %C IS IDX OF N.points matching
                     if(~isempty(c))
                         branchlength = n.branchlength;
                         break
