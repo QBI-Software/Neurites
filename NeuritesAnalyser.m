@@ -136,7 +136,7 @@ classdef NeuritesAnalyser
           resolution = 1;
           
           %test
-          figure
+          %figure
           imshow(obj.maskedR)
           hold on
           %Masked region coords

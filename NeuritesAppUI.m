@@ -952,7 +952,7 @@ if (get(hObject,'Value') > 0)
     htable = findobj('Tag','uitableResults');
     set(htable,'data',RData,'ColumnName',RCols);
     %Directions
-    status= sprintf('ROI set: Proceed to Identify button')
+    status= sprintf('ROI set: Proceed to Run Analysis button')
     updateStatus(handles,status);
 else
     %hObject.UserData = {};
