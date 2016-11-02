@@ -5,10 +5,11 @@ function rtn = checkHeaders(csvfile,hdrs)
                  'treatAsEmpty', {'NA', 'na'}, ...
                  'commentStyle', '//');
     fclose(fid);
+    h = strsplit(hdrs,',');
     for i=1: length(C)
         v = strjoin(C{1,i}(1));
         v = strrep(v,' ','');
-        if (size(strfind(hdrs,v)) == 0)
+        if (isempty(strfind(hdrs,v)) || isempty(strmatch(v,h,'exact')))
             csvfile
             rtn = v
             break

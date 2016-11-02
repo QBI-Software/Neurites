@@ -1,6 +1,10 @@
 function [Scale, Shiftx, Shifty] = estimateOverlay(handles, I,cell1csv)
 %Estimate parameters for overlay of CSV data onto image
-    Img = rgb2gray(I);
+    if (islogical(I))
+        Img = I;
+    else
+        Img = rgb2gray(I);
+    end
     %Use GPU
     %Img = gpuArray(Im);
     Tb = readtable(cell1csv);

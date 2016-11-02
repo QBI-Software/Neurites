@@ -437,8 +437,12 @@ shifty = str2double(get(hSY,'String'));
 fit = str2double(get(hFit,'String'));
 hC1 = findobj('Tag','editCell1');
 cell1label = get(hC1, 'String');
+cell1label = cleanlabel(cell1label);
+set(hC1,'String',cell1label)
 hC2 = findobj('Tag','editCell2');
 cell2label = get(hC2, 'String');
+cell2label = cleanlabel(cell2label);
+set(hC2,'String',cell2label)
 %Run analysis
 hwb = waitbar(0,'Running analysis ...');
 steps = 100;
@@ -581,7 +585,9 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
     if (iscell(cell1ID))
         cell1ID = strjoin(cell1ID);
     end
-    
+    %Check label is valid for table headers
+    cell1ID = cleanlabel(cell1ID);
+    set(hCf1,'String',cell1ID)
     hfiles = findobj('Tag','btnBrowser');
     %hfdata = hfiles.UserData;
     hfdata = get(hfiles,'UserData');
@@ -629,6 +635,9 @@ function btnAnalysisFiles2_Callback(hObject, eventdata, handles)
     if (iscell(cell2ID))
         cell2ID = strjoin(cell2ID);
     end
+    %Check label is valid for table headers
+    cell2ID = cleanlabel(cell2ID);
+    set(hCf2,'String',cell2ID)
     hcsv1 = findobj('Tag','btnAnalysisFiles');
     hfiles = findobj('Tag','btnBrowser');
     %hfdata = hfiles.UserData;
@@ -652,7 +661,7 @@ function btnAnalysisFiles2_Callback(hObject, eventdata, handles)
         return 
     end
     %save to userdata
-    data = get(hObject,'UserData');
+    data = get(hcsv1,'UserData');
     if (isempty(data))
         data = struct('csvPath', csvPath, 'cell2file', cell2, 'cell2ID',cell2ID);
     else
@@ -697,7 +706,9 @@ if ( ~isempty(csvdata))
             [Scale, Shiftx, Shifty] = estimateOverlay(handles,I, csv1);
             Cell1 = csvdata.cell1ID;
             Cell2 = csvdata.cell2ID;
-            M = table(Cell1,Cell2, Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
+            C = {Cell1 Cell2 Scale Fit Shiftx Shifty Minlength Tolerance};
+            M = cell2table(C,'VariableNames', { 'Cell1' 'Cell2' 'Scale' 'Fit' 'Shiftx' 'Shifty' 'Minlength' 'Tolerance'});
+            %Stopped working?? M = table(Cell1,Cell2, Scale, Fit, Shiftx, Shifty, Minlength,Tolerance);
            
         end
         loadConfig(M,getProgramtype,0);
