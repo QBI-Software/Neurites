@@ -17,11 +17,24 @@
 % Please see Instructions for Usage at :
 %       https://github.com/QBI-Software/Neurites/wiki/Instructions
 % 
-% Developed by Liz Cooper-Williams, QBI (e.cooperwilliams@uq.edu.au)
 % Version: 2.0 (Oct 2015) - Synapse analysis
 % Version: 3.0 (Aug 2016) - Annulus analysis
-%
+% Developer: Liz Cooper-Williams,e.cooperwilliams@uq.edu.au
+% Copyright {2017} { Queensland Brain Institute, University of Qld }
+% 
+%    Licensed under the Apache License, Version 2.0 (the "License");
+%    you may not use this file except in compliance with the License.
+%    You may obtain a copy of the License at
+% 
+%        http://www.apache.org/licenses/LICENSE-2.0
+% 
+%    Unless required by applicable law or agreed to in writing, software
+%    distributed under the License is distributed on an "AS IS" BASIS,
+%    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%    See the License for the specific language governing permissions and
+%    limitations under the License.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 function NeuritesApp()
 
