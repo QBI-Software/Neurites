@@ -87,6 +87,9 @@ classdef NeuritesAnalyser
         BW1 = imopen(BW,se1);
         BW1 = imopen(BW1,se2);
         [B,L,N,~] = bwboundaries(BW1);%,8,'noholes');
+        if (isempty(B))
+            [B,L,N,~] = bwboundaries(BW);
+        end
         if (N > 30) %thick dendrites - be brutal
             BW1 = imopen(BW1,se3);
             [B,L,N,~] = bwboundaries(BW1);
