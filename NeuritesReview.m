@@ -151,8 +151,14 @@ function [s1,p] = plottrace(c,syn,linestyle,colour)
         case 1
             s1 = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),'color',...
                 'm','marker','X','linestyle','none','LineWidth', 2);
-            p = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
-                'color',colour,'linestyle',linestyle,'LineWidth', 2);
+            %synapse may be on soma
+            if (isempty(syn.SomapointsC1))
+                p = plot(syn.MedianC1(:,1), syn.MedianC1(:,2),...
+                'color','y','marker','O','linestyle','none','LineWidth', 1);
+            else
+                p = plot(syn.SomapointsC1(:,1),syn.SomapointsC1(:,2),...
+                    'color',colour,'linestyle',linestyle,'LineWidth', 2);
+            end
         case 2
             p = plot(syn.EndpointsC1(:,1),syn.EndpointsC1(:,2),...
                 'color',colour,'linestyle',linestyle,'LineWidth', 2);
@@ -161,8 +167,15 @@ function [s1,p] = plottrace(c,syn,linestyle,colour)
         case 3
             s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
                 'm','marker','X','linestyle','none','LineWidth', 2);
-            p = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
+            %synapse may be on soma
+            if (isempty(syn.SomapointsC2))
+                p = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),...
+                'color','y','marker','O','linestyle','none','LineWidth', 1);
+            else
+                p = plot(syn.SomapointsC2(:,1),syn.SomapointsC2(:,2), ...
                 'color',colour,'linestyle',linestyle,'LineWidth', 2);
+            end
+            
         case 4
             s1 = plot(syn.MedianC2(:,1), syn.MedianC2(:,2),'color',...
                 'm','marker','X','linestyle','none','LineWidth', 2);
