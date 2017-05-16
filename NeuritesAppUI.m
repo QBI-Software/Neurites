@@ -563,9 +563,16 @@ function btnReview_Callback(hObject, eventdata, handles)
     N = hNData.N;
     types = [1];
     hC1 = findobj('Tag','editCell1');
-    cell1label = strjoin(get(hC1, 'String'));
+    cell1label = get(hC1, 'String');
+    if (iscell(cell1label))
+        cell1label = strjoin(cell1label);
+    end
     hC2 = findobj('Tag','editCell2');
-    cell2label = strjoin(get(hC2, 'String'));
+    cell2label = get(hC2, 'String');
+    if (iscell(cell2label))
+        cell2label = strjoin(get(hC2, 'String'));
+    end
+    
     if (~isempty(hNData) && hNData.numsynapses > 0)
         NeuritesReview(I,N,cell1label,cell2label);
     else

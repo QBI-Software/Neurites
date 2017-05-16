@@ -103,13 +103,15 @@ classdef NeuritesAnalyser
         %Radii = cat(1,sqrt(Area/pi));
         %circles = find(Radii > 5 & Radii < 100);
         idx = find(Area == max(Area));
-        %Iterate to find another suitable region  TODO
-        B = sort(Area,'descend');
-        i = 2;
-        while (Eccentricity(idx) > 0.8 && i<= length(Area) ) %not a circle
-            %sort Area values by max first then take second
-            idx = find(Area == B(i));
-            i = i+1;
+        %Iterate to find another suitable region  
+        if (length(Area) <= 5)
+            B = sort(Area,'descend');
+            i = 2;
+            while (Eccentricity(idx) > 0.8 && i<= length(Area) ) %not a circle
+                %sort Area values by max first then take second
+                idx = find(Area == B(i));
+                i = i+1;
+            end
         end
                
         c = Centroid(idx,:);

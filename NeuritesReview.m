@@ -93,7 +93,7 @@ function setreviewtype(source,callbackdata,syn,N1)
     c = source.Value -1;
     hId = findobj('Tag','btnReview');
     hData = get(hId,'UserData');
-    if (~isempty(hData))
+    if (~isempty(hData) && isfield(hData,'p'))
         p = hData.p;
         s = hData.s;
         delete(p);
