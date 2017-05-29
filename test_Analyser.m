@@ -1,6 +1,6 @@
 %%Test NeuritesAnalyser and NeuritesSynapse
-imgname='Neurons.tif';%'100715 annotated.tif';%example.tif'
-imgroi ='neurites_roi.tif';
+imgname='sampledata/010415 tracing A.tif';%'100715 annotated.tif';%example.tif'
+imgroi ='sampledata/neurites_roi.tif';
 I = imread(imgname);
 % thresholds – 1x3 matrix with the threshold values
 IG = rgb2gray(I);
@@ -23,16 +23,20 @@ for i=1:length(N.Synapses)
     end
 end
 sprintf('Found %d synapses', ctr);
-cell1file='DSdata.csv';
-cell2file='SBACdata.csv';
-scale=2.84;
-shiftx=0;
-shifty=-935;
-fit=10;
-cell1label='DS';
-cell2label='SBAC';
+cell1file='sampledata/010415_DSdata.csv';
+cell2file='sampledata/010415_SBACdata.csv';
+%Load neurites_config.csv
+M = readtable('sampledata/neurites_config.csv');
+
+scale=M.Scale;
+shiftx=M.Shiftx;
+shifty=M.Shifty;
+fit=M.Fit;
+cell1label=M.Cell1;
+cell2label=M.Cell2;
+
 N = N.measureSynapses(showtypes,cell1file,cell2file,scale,shiftx,shifty,fit);
 [colnames,T1] = N.generateCentredDataTable(showtypes,cell1label, cell2label);
 %save to file
-outputfile = fullfile(pathname, 'neurites_data_centred.csv');
+outputfile = fullfile('sampledata', 'neurites_data_centred.csv');
 saveDataFile(outputfile, colnames, T1);
