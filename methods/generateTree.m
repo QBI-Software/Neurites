@@ -18,7 +18,7 @@ for i=1:length(csvidx)
     btype = char(CSV.PointType(i));
     blength = blength + CSV.Length__m_(i);
     if (strcmp(btype, 'CP')==0)
-        n = NeuritesNode(bcount,blength,btype,order)
+        n = NeuritesNode(bcount,blength,btype,order)id,branchlength,nodetype,nodelevel,countid
         if (~isempty(n0) && isa(n0,'NeuritesNode'))
                 %%TODO: set root node to parent of this node
                 if (n0.nodelevel ~= n.nodelevel -1)

@@ -229,18 +229,18 @@ function changeSoma(source,callbackdata)
     hNData = get(hId,'UserData');
     N1 = hNData.N;
     %N1 = nH.UserData.analyser;
-    s1 = [N1.soma1.centroid(:,1), N1.soma1.centroid(:,2)]
-    s2 = [N1.soma2.centroid(:,1), N1.soma2.centroid(:,2)]
+    s1 = [N1.soma1.centroid(:,1), N1.soma1.centroid(:,2)];
+    s2 = [N1.soma2.centroid(:,1), N1.soma2.centroid(:,2)];
     prompt = {'Enter Soma 1 x,y coords:','Enter Soma 2 x,y coords:'};
     dlg_title = 'Change Soma centroid positions';
     num_lines = 1;
     defaultans = {num2str(s1),num2str(s2)};
-    answer = inputdlg(prompt,dlg_title,num_lines,defaultans)
+    answer = inputdlg(prompt,dlg_title,num_lines,defaultans);
     %save results
     a1 = strsplit(answer{1},' ');
     a2 = strsplit(answer{2},' ');
-    N1.soma1.centroid = [str2num(a1{1}) str2num(a1{2})]
-    N1.soma2.centroid = [str2num(a2{1}) str2num(a2{2})]
+    N1.soma1.centroid = [str2num(a1{1}) str2num(a1{2})];
+    N1.soma2.centroid = [str2num(a2{1}) str2num(a2{2})];
     clearplots();
     plot(N1.soma1.centroid(:,1), N1.soma1.centroid(:,2),'color', 'b',...
             'marker','o','linestyle','none','LineWidth', 2);
@@ -262,7 +262,7 @@ function filterTree(source,callbackdata,cellnum, celllabel)
     [s,v] = listdlg('PromptString',prompt,...
                 'SelectionMode','multiple',...
                 'CancelString', 'None',...
-                'ListString',branchoptions{cellnum})
+                'ListString',branchoptions{cellnum});
     %save filters
     if (v) 
         b = branchoptions{cellnum}(s);
@@ -277,7 +277,7 @@ function filterTree(source,callbackdata,cellnum, celllabel)
             syn = N1.Synapses{i};
             if cellnum == 1
                 tb = strcat(num2str(syn.TreeC1),'-',num2str(syn.BranchPointC1));
-                c = 1
+                c = 1;
             else
                 tb = strcat(num2str(syn.TreeC2),'-',num2str(syn.BranchPointC2));
                 c = 3;
@@ -288,7 +288,7 @@ function filterTree(source,callbackdata,cellnum, celllabel)
         end
     else
         %clear filters
-        b = {}
+        b = {};
         N1 = N1.setfilter(cellnum,b);
     end
     %save
@@ -441,7 +441,7 @@ function acceptChanges(source,callbackdata,cell1label, cell2label)
              outputfile = fullfile(PathName,FileName);
              saveDataFile(outputfile, colnames, T);
              %Recopy synapses to new list
-             if (length(hData.deleted))
+             if (~isempty(hData.deleted))
                  cSynapses ={length(N1.Synapses)};
                  m = 1;
                  for j=1:length(N1.Synapses)

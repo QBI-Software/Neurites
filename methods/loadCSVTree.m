@@ -43,8 +43,8 @@ for j=1:length(t)
             xpoints(end+1)=CSV.EndX(i);
             ypoints(end+1)=CSV.EndY(i);
             points =cat(2,xpoints',ypoints');
-            n = NeuritesNode(bid,blength,btype,order,bcount);
-            n = n.setMeasurements(bangle,bvol,bsa,blength,points)
+            n = NeuritesNode(bid,blength,btype,order,bcount,CSV.Tree(i));
+            n = n.setMeasurements(bangle,bvol,bsa,blength,points);
             points =[];
             xpoints=[];
             ypoints=[];
@@ -86,8 +86,8 @@ function [N,m] = findParent(branches, level)
    for m=1:length(branches{1,level})
         N = branches{1,level}(m,1);
         if (N.isBranchpoint() && ~N.hasChildNodes())
-            sprintf('Parent node %d',N.id)
-            N
+            sprintf('Parent node %d',N.id);
+            %N
             break;
         else
             N = 0;

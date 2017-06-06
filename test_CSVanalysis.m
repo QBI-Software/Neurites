@@ -1,8 +1,11 @@
 %%Test NeuritesAnalyser and NeuritesSynapse
 %GENERATE IMAGE WITH CSV data ONLY
-cell1file='sampledata/010415_DSdata.csv';
-cell2file='sampledata/010415_SBACdata.csv';
+cell1file='sampledata/16-09-15_pair_04_AC.csv'; %010415_DSdata.csv';
+cell2file='sampledata/16-09-15_pair_04_GC.csv'; %010415_SBACdata.csv';
+%cell1file='sampledata/010415_DSdata.csv';
+%cell2file='sampledata/010415_SBACdata.csv';
 samplecells = {cell1file, cell2file};
+colorstring = 'rgkbgrymckbgrymc';%colorstring(out(i).nodelevel)
 for m=1:length(samplecells)
     cellfile = samplecells{1,m};
     T = readtable(cellfile);
@@ -12,40 +15,80 @@ for m=1:length(samplecells)
     tree = loadCSVTree(cellfile, soma, scale);
     sprintf('Loaded neuron from %s with %d trees', cellfile,length(tree));
     %Actual centroid data - reload tree
-    [cx,cy] = findcentroid(tree);
+    [cx,cy] = findsomacentroid(tree);
     soma = NeuritesSoma(0,0,[cx,cy]);
     tree = loadCSVTree(cellfile, soma, scale);
     samplecells{2,m} = tree;
-    plotdigineuron(tree);
-end
+    plotdigineuron(tree,colorstring(m));
     
-% T1 = readtable(cell1file);
-% T2 = readtable(cell2file);
-% %config = readtable('sampledata/neurites_config.csv');
-% centroidxy = [mean(T1.StartX) mean(T1.StartY)]; %estimate from CSV data
-% scale = 1;
-% soma1 = NeuritesSoma(0,0,centroidxy);
-% tree1 = loadCSVTree(cell1file, soma1, scale);
-% sprintf('Loaded neuron 1 with %d trees', length(tree1));
-% centroidxy = [mean(T2.StartX) mean(T2.StartY)]; %estimate from CSV data
-% soma2 = NeuritesSoma(0,0,centroidxy);
-% tree2 = loadCSVTree(cell2file, soma2, scale);
-% sprintf('Loaded neuron 2 with %d trees', length(tree2));
-% 
-% %Revise centroid data
-% [cx,cy] = findcentroid(tree1);
-% soma1 = NeuritesSoma(0,0,[cx,cy]);
-% tree1 = loadCSVTree(cell1file, soma1, scale);
-% [cx,cy] = findcentroid(tree2);
-% soma2 = NeuritesSoma(0,0,[cx,cy]);
-% tree2 = loadCSVTree(cell2file, soma2, scale);
-% plotdigineuron(tree1);
-% plotdigineuron(tree2);
-%%TODO: DIGITAL NEURON: loop through other tree until find intersect C = intersect(A,B,'rows')
+end
+%Find overlapping regions
+synapses = findsynapses(samplecells); %2 cells    
+sprintf('total synapses=%d', length(synapses))
 
 
 %%%%METHODS FOR NEURON TREE%%%%%%
-function [cx,cy] = findcentroid(tree1)
+%%TODO: DIGITAL NEURON: loop through other tree until find intersect C = intersect(A,B,'rows')
+%[xi,yi] = polyxpoly(x1,y1,x2,y2) returns the intersection points of two polylines in a planar, Cartesian system
+function synapses = findsynapses(samples)
+    synapses = {};
+    ctr = 0;
+    tree1 = samples{2,1};
+    tree2 = samples{2,2};
+    for j=1:length(tree2)
+        branches2 = tree2{j,1};
+        data2 = loadById(branches2);
+        N2 = branches2{1,1}(1,1); %root node
+        out2 = [];
+        out2 = inOrder(data2, N2, out2);
+        %figure
+        hold on
+        for h=1:length(out2)
+            N0 = out2(h);
+            x1 = N0.points(:,1);
+            y1 = N0.points(:,2);
+            sprintf('Cell2 node id=%s', N0.id);
+            plot(x1,y1,'r-')
+            hold on
+            for k=1:length(tree1)
+                branches = tree1{k,1};
+                data = loadById(branches);
+                N = branches{1,1}(1,1); %root node
+                out = [];
+                out = postOrder(data, N, out);
+                arrayfun(@(n) plot(n.points(:,1),n.points(:,2),'g-'),out)
+                regions = arrayfun(@(n) length(polyxpoly(x1,y1,n.points(:,1),n.points(:,2))>1),out);
+                %if positive match - save N - create CSVSynapse
+                %[xi,yi]=polyxpoly(x1,y1,s.cell2.parentnode.points(:,1),s.cell2.parentnode.points(:,2))
+                if (~isempty(find(regions>=1)))
+                    disp("regions found")
+                    [idx] = find(regions>=1);
+                    for w=1:length(idx)
+                        
+                        p = out(idx(w));
+                        [xi,yi]=polyxpoly(x1,y1,p.points(:,1),p.points(:,2));
+                        %TODO split for multiple synapses - each separate
+                        for f=1:length(xi)
+                            ctr =ctr+1;
+                            synapses{ctr}=struct('x',xi(f),'y',yi(f),'cell1', p, 'cell2', N0);
+                        end
+                        %figure
+                        %plot(x1,y1,'g-')
+                        
+                        %plot(p.points(:,1),p.points(:,2),'r-')
+                        plot(xi,yi,'xm','LineWidth',2)
+                        
+                    end
+                end
+            end
+            %hold off
+        end
+    end
+    
+end
+
+%generate missing soma and calculate centroid
+function [cx,cy,area,perim,x,y] = findsomacentroid(tree1)
     polycoordsX = [];
     polycoordsY = [];
     for k=1:length(tree1)
@@ -56,41 +99,35 @@ function [cx,cy] = findcentroid(tree1)
             
         end
     end
-    %if lines don't cross - use polycoords
-    %[xi,yi] = polyxpoly(x1,y1,x2,y2) returns the intersection points of two polylines in a planar, Cartesian system
-    n = ceil(length(polycoordsX)/2);
+   
+    %Sequence with reference to centroid
     x = polycoordsX;
     y = polycoordsY;
+    xm = x - mean(polycoordsX);
+    ym = y - mean(polycoordsY);
+    [t1,r1] = cart2pol(xm,ym)
+    mapObj = containers.Map(t1,r1);
+    [xp,yp] = pol2cart(cell2mat(mapObj.keys()),cell2mat(mapObj.values()))
+    x = xp + mean(polycoordsX);
+    y = yp + mean(polycoordsY);
     %Append first set of point to complete polygon
     x(end+1) = x(1);
     y(end+1) = y(1);
-    x1 = x(1:n);
-    y1 = y(1:n);
-    x2 = x(n+1:end);
-    y2 = y(n+1:end);
-    [xi,yi] = polyxpoly(x1,y1,x2,y2);
-    if(length(xi) > 1) %should at least match starting point
-    	
-        %convert to polar to sort coords
-        [th,r]=cart2pol(polycoordsX,polycoordsY);
-        %sort by angle
-        mapObj = containers.Map(th,r)
-        %polarplot(cell2mat(mapObj.keys()),cell2mat(mapObj.values()))
-        [x,y] = pol2cart(cell2mat(mapObj.keys()),cell2mat(mapObj.values()))
-        %Append first set of point to complete polygon
-        x(end+1) = x(1);
-        y(end+1) = y(1);
-    end
-    
+    %show in plot
     plot(x,y,'LineStyle',':'); 
-    cx = mean(x);
-    cy = mean(y);
+    [ geom, iner, cpmo ] = polygeom( x, y );
+    area = geom(1);
+    cx = geom(2);
+    cy = geom(3);
+    perim = geom(4);
+    %cx = mean(x);
+    %cy = mean(y);
     hold on;
     plot(cx,cy,'marker','o','color','b');
 end
 
 
-function plotdigineuron(tree1)
+function plotdigineuron(tree1,color)
     for k=1:length(tree1)
 
         branches1 = tree1{k,1};
@@ -104,10 +141,13 @@ function plotdigineuron(tree1)
         out = postOrder(data, N, out); %THIS ONE BEST
 
         %%Plot branches - color coordinated levels
-        colorstring = 'kbgrymckbgrymc';%colorstring(out(i).nodelevel)
-
+        colorstring = 'kbgrymc';%colorstring(out(i).nodelevel)
+        b = mod(length(colorstring),k)
+        if(color=="")
+            color = colorstring(b);
+        end
         for i=1:length(out)
-            plot(out(i).points(:,1),out(i).points(:,2),'color',colorstring(k)); 
+            plot(out(i).points(:,1),out(i).points(:,2),'color',color); 
         end
     end
 end

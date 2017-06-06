@@ -15,15 +15,17 @@ classdef NeuritesNode
         vol             %volume of branch um3
         sa              %sa of branch um2
         points          %xy points
+        tree            %tree number
     end
     
     methods
-        function obj = NeuritesNode(id,branchlength,nodetype,nodelevel,countid)
+        function obj = NeuritesNode(id,branchlength,nodetype,nodelevel,countid,treenum)
             obj.id = id;
             obj.countid = countid;
             obj.branchlength = branchlength;
             obj.nodetype = nodetype;
             obj.nodelevel = nodelevel;
+            obj.tree = treenum;
         end
         function obj = setMeasurements(obj,anglearc, vol, sa, blength, points)
             obj.anglearc = anglearc;

@@ -24,7 +24,7 @@ function varargout = NeuritesAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAppUI
 
-% Last Modified by GUIDE v2.5 15-Jan-2016 11:28:22
+% Last Modified by GUIDE v2.5 05-Jun-2017 14:08:07
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -560,7 +560,7 @@ function btnReview_Callback(hObject, eventdata, handles)
     %Get Synapse data
     hId = findobj('Tag','btnIdentify');
     hNData = get(hId,'UserData');
-    N = hNData.N;
+   
     types = [1];
     hC1 = findobj('Tag','editCell1');
     cell1label = get(hC1, 'String');
@@ -574,9 +574,10 @@ function btnReview_Callback(hObject, eventdata, handles)
     end
     
     if (~isempty(hNData) && hNData.numsynapses > 0)
+        N = hNData.N;
         NeuritesReview(I,N,cell1label,cell2label);
     else
-        msgbox('Cannot find synapse data! Run Analysis first.','Error');
+        msgbox('Cannot find synapse data! Run Image Analysis first.','Error');
     end
     
     
@@ -758,9 +759,11 @@ function btnCompass_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
  hId = findobj('Tag','btnIdentify');
  hNData = get(hId,'UserData');
- if (isempty(hNData))
+ hCSV = findobj('Tag','btnAnalysisFiles');
+ csvdata = get(hCSV,'UserData');
+ if (isempty(hNData) && isempty(csvdata))
      msgbox('No data found - please run Analysis first');
- else
+ elseif (~isempty(hNData))
      N = hNData.N;
      l = length(N.Synapses);
      theta1 = [l];
@@ -798,6 +801,48 @@ function btnCompass_Callback(hObject, eventdata, handles)
      compass(x2,-y2,color2);
      set(gca,'View',[-90 90],'YDir','reverse');
      legend([get(hCell1, 'String'),get(hCell2, 'String')]);
+ elseif (~isempty(csvdata))
+     N = csvdata.N;
+     l = length(N.synapses);
+     theta1 = [l];
+     theta2 = [l];
+     rho1 = [l];
+     rho2 = [l];
+     %display roi
+     figure
+     %hold on;
+     soma1 = N.samplecells{3,1};
+     soma2 = N.samplecells{3,2};
+     for i=1:l
+         syn = N.synapses{1,i};
+         [t1,r1,d1] = findAngleSoma(syn.x,syn.y,soma1,N.scale);
+         [t2,r2,d2] = findAngleSoma(syn.x,syn.y,soma2,N.scale);
+         theta1(end+1) = t1;
+         theta2(end+1) = t2;
+         rho1(end+1) = r1;
+         rho2(end+1) = r2;
+         
+     end
+     
+     [x1,y1] = pol2cart(2 * pi - theta1,rho1);
+     [x2,y2] = pol2cart(2 * pi - theta2,rho2);
+     
+     hCell1 = findobj('Tag','editCell1');
+     hCell2 = findobj('Tag','editCell2');
+     %Add legend relative to cell label
+     if (strcmp(get(hCell1, 'String'),'DS'))
+        color1 = '-r';
+        color2 = '-g';
+     else
+        color1 = '-g';
+        color2 = '-r';
+     end
+     
+     compass(x1,-y1,color1);
+     hold on
+     compass(x2,-y2,color2);
+     set(gca,'View',[-90 90],'YDir','reverse');
+     legend([get(hCell1, 'String'),get(hCell2, 'String')]);
  end
 
 
@@ -808,9 +853,11 @@ function btnRose_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
  hId = findobj('Tag','btnIdentify');
  hNData = get(hId,'UserData');
- if (isempty(hNData))
+ hCSV = findobj('Tag','btnAnalysisFiles');
+ csvdata = get(hCSV,'UserData');
+ if (isempty(hNData) && isempty(csvdata))
      msgbox('No data found - please run Analysis first');
- else
+ elseif (~isempty(hNData))
      N = hNData.N;
      l = length(N.Synapses);
      theta1 = [l];
@@ -829,6 +876,38 @@ function btnRose_Callback(hObject, eventdata, handles)
          
      end
      
+     hCell1 = findobj('Tag','editCell1');
+     hCell2 = findobj('Tag','editCell2');
+          
+     %show plots
+     
+     rose(theta1);
+     hold on
+     rose(theta2);
+     set(gca,'View',[-90 90],'YDir','reverse');
+     legend([get(hCell1, 'String'),get(hCell2, 'String')])
+elseif (~isempty(csvdata))
+     N = csvdata.N;
+     l = length(N.synapses);
+     theta1 = [l];
+     theta2 = [l];
+     rho1 = [l];
+     rho2 = [l];
+     %display roi
+     figure
+     %hold on;
+     soma1 = N.samplecells{3,1};
+     soma2 = N.samplecells{3,2};
+     for i=1:l
+         syn = N.synapses{1,i};
+         [t1,r1,d1] = findAngleSoma(syn.x,syn.y,soma1,N.scale);
+         [t2,r2,d2] = findAngleSoma(syn.x,syn.y,soma2,N.scale);
+         theta1(end+1) = t1;
+         theta2(end+1) = t2;
+         rho1(end+1) = r1;
+         rho2(end+1) = r2;
+         
+     end
      hCell1 = findobj('Tag','editCell1');
      hCell2 = findobj('Tag','editCell2');
           
@@ -1321,3 +1400,64 @@ function clearplots(source,callbackdata)
     im = imshow(I);
 
  
+
+
+% --- Executes on button press in btnCSVanalysis.
+% SYNAPSE analysis with CSV files only - no ROI
+function btnCSVanalysis_Callback(hObject, eventdata, handles)
+% hObject    handle to btnCSVanalysis (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+hC1 = findobj('Tag','editCell1');
+cell1label = get(hC1, 'String');
+cell1label = cleanlabel(cell1label);
+set(hC1,'String',cell1label)
+hC2 = findobj('Tag','editCell2');
+cell2label = get(hC2, 'String');
+cell2label = cleanlabel(cell2label);
+set(hC2,'String',cell2label)
+scale = 1; %CSV should be in um already
+%Get CSV
+hCSV = findobj('Tag','btnAnalysisFiles');
+csvdata = get(hCSV,'UserData');
+
+if ( ~isempty(csvdata))
+    csv1 = fullfile(csvdata.csvPath, csvdata.cell1file);
+    csv2 = fullfile(csvdata.csvPath, csvdata.cell2file);
+    %Run analysis
+    hwb = waitbar(0,'Running analysis ...');
+    steps = 100;
+    step = 10;
+    waitbar(step / steps)
+    figure
+    %Run analyser
+    N = NeuritesCSVAnalyser(csv1,csv2, scale);
+    hold off;
+    %step = step + 10;
+    %waitbar(step / steps)
+    htable = findobj('Tag','uitableResults');
+    %create table
+    [colnames,Tc] = N.generateTable(cell1label, cell2label);
+    set(htable,'data',Tc,'ColumnName',colnames);
+    %save to file
+    outputfile = fullfile(csvdata.csvPath, 'neurites_CSVdata.csv');
+    saveDataFile(outputfile, colnames, Tc);
+    
+    step = steps;
+    waitbar(step / steps)
+    close(hwb);
+    csvdata.N = N; %struct('N', N, 'numsynapses',length(N.synapses));
+    set(hCSV,'UserData',csvdata);
+    status = sprintf('Found %d synaptic regions. Saved to %s', length(N.synapses),outputfile);
+    updateStatus(handles,status);
+    msgbox('Processing Complete!','Info');
+    
+else
+    msgbox('Please load CSV files','Error');
+end
+
+
+
+
+
