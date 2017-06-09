@@ -97,7 +97,7 @@ classdef NeuritesCSVAnalyser
         function d = getDistanceToSoma(obj,synapsenode,x,y)
             %subtract synapse from end of segment length
             synxy = [x,y];
-            endxy = [synapsenode.points(end,1), synapsenode.points(end,2)];
+            endxy = [synapsenode.points(1,1), synapsenode.points(1,2)];
             d = -abs((distanceBetween(synxy,endxy,'euclidean')));
 
             while(~isempty(synapsenode.parentnode))
@@ -158,23 +158,31 @@ end
 %Sequence with reference to centroid
 x = polycoordsX;
 y = polycoordsY;
-xm = x - mean(polycoordsX);
-ym = y - mean(polycoordsY);
-[t1,r1] = cart2pol(xm,ym);
-mapObj = containers.Map(t1,r1);
-[xp,yp] = pol2cart(cell2mat(mapObj.keys()),cell2mat(mapObj.values()));
-x = xp + mean(polycoordsX);
-y = yp + mean(polycoordsY);
-%Append first set of point to complete polygon
-x(end+1) = x(1);
-y(end+1) = y(1);
+if (length(polycoordsX) > 2)
+    xm = x - mean(polycoordsX);
+    ym = y - mean(polycoordsY);
+    [t1,r1] = cart2pol(xm,ym);
+    mapObj = containers.Map(t1,r1);
+    [xp,yp] = pol2cart(cell2mat(mapObj.keys()),cell2mat(mapObj.values()));
+    x = xp + mean(polycoordsX);
+    y = yp + mean(polycoordsY);
+    %Append first set of point to complete polygon
+    x(end+1) = x(1);
+    y(end+1) = y(1);
 
-%calculate geometric params
-[ geom, iner, cpmo ] = polygeom( x, y );
-area = geom(1);
-cx = geom(2);
-cy = geom(3);
-perim = geom(4);
+    %calculate geometric params
+    [ geom, iner, cpmo ] = polygeom( x, y );
+    area = geom(1);
+    cx = geom(2);
+    cy = geom(3);
+    perim = geom(4);
+else
+    cx = mean(polycoordsX);
+    cy = mean(polycoordsY);
+    area = 0;
+    perim = 0;
+end
+
 %show in plot
 plot(x,y,'LineStyle',':');
 hold on;
