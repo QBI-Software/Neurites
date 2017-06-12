@@ -98,11 +98,12 @@ classdef NeuritesCSVAnalyser
             %subtract synapse from end of segment length
             synxy = [x,y];
             endxy = [synapsenode.points(1,1), synapsenode.points(1,2)];
-            d = -abs((distanceBetween(synxy,endxy,'euclidean')));
+            d = abs((distanceBetween(synxy,endxy,'euclidean')));
 
             while(~isempty(synapsenode.parentnode))
-                d = d+ synapsenode.branchlength;
+                
                 synapsenode = synapsenode.parentnode;
+                d = d+ synapsenode.branchlength;
             end
 
         end

@@ -437,11 +437,11 @@ shifty = str2double(get(hSY,'String'));
 fit = str2double(get(hFit,'String'));
 hC1 = findobj('Tag','editCell1');
 cell1label = get(hC1, 'String');
-cell1label = cleanlabel(cell1label);
+cell1label = cleanlabel(cell1label)
 set(hC1,'String',cell1label)
 hC2 = findobj('Tag','editCell2');
 cell2label = get(hC2, 'String');
-cell2label = cleanlabel(cell2label);
+cell2label = cleanlabel(cell2label)
 set(hC2,'String',cell2label)
 %Run analysis
 hwb = waitbar(0,'Running analysis ...');
@@ -563,12 +563,12 @@ function btnReview_Callback(hObject, eventdata, handles)
    
     types = [1];
     hC1 = findobj('Tag','editCell1');
-    cell1label = get(hC1, 'String');
+    cell1label = get(hC1, 'String')
     if (iscell(cell1label))
         cell1label = strjoin(cell1label);
     end
     hC2 = findobj('Tag','editCell2');
-    cell2label = get(hC2, 'String');
+    cell2label = get(hC2, 'String')
     if (iscell(cell2label))
         cell2label = strjoin(get(hC2, 'String'));
     end
@@ -588,14 +588,6 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
     fileTypes = {  '*.csv', 'CSV' };
-    hCf1 = findobj('Tag', 'editCell1');
-    cell1ID=get(hCf1,'String');% 'DS';
-    if (iscell(cell1ID))
-        cell1ID = strjoin(cell1ID);
-    end
-    %Check label is valid for table headers
-    cell1ID = cleanlabel(cell1ID);
-    set(hCf1,'String',cell1ID)
     hfiles = findobj('Tag','btnBrowser');
     %hfdata = hfiles.UserData;
     hfdata = get(hfiles,'UserData');
@@ -618,6 +610,14 @@ function btnAnalysisFiles_Callback(hObject, eventdata, handles)
         return 
     end
     %save to userdata
+    hCf1 = findobj('Tag', 'editCell1');
+    cell1ID=get(hCf1,'String');
+    if (iscell(cell1ID))
+        cell1ID = strjoin(cell1ID);
+    end
+    %Check label is valid for table headers
+    cell1ID = cleanlabel(cell1ID)
+    set(hCf1,'String',cell1ID)
     data = get(hObject,'UserData');
     if (isempty(data))
         data = struct('csvPath', csvPath, 'cell1file', cell1, 'cell1ID',cell1ID);
@@ -638,14 +638,6 @@ function btnAnalysisFiles2_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
     fileTypes = {  '*.csv', 'CSV' };
-    hCf2 = findobj('Tag', 'editCell2');
-    cell2ID=get(hCf2,'String');% 'SBAC';
-    if (iscell(cell2ID))
-        cell2ID = strjoin(cell2ID);
-    end
-    %Check label is valid for table headers
-    cell2ID = cleanlabel(cell2ID);
-    set(hCf2,'String',cell2ID)
     hcsv1 = findobj('Tag','btnAnalysisFiles');
     hfiles = findobj('Tag','btnBrowser');
     %hfdata = hfiles.UserData;
@@ -669,6 +661,14 @@ function btnAnalysisFiles2_Callback(hObject, eventdata, handles)
         return 
     end
     %save to userdata
+    hCf2 = findobj('Tag', 'editCell2');
+    cell2ID=get(hCf2,'String');
+    if (iscell(cell2ID))
+        cell2ID = strjoin(cell2ID);
+    end
+    %Check label is valid for table headers
+    cell2ID = cleanlabel(cell2ID);
+    set(hCf2,'String',cell2ID)
     data = get(hcsv1,'UserData');
     if (isempty(data))
         data = struct('csvPath', csvPath, 'cell2file', cell2, 'cell2ID',cell2ID);
@@ -1184,6 +1184,27 @@ function editCell1_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of editCell1 as text
 %        str2double(get(hObject,'String')) returns contents of editCell1 as a double
 
+    cell1ID=get(hObject,'String');
+    if (iscell(cell1ID))
+        cell1ID = strjoin(cell1ID);
+    end
+    %Check label is valid for table headers
+    cell1ID = cleanlabel(cell1ID);
+    set(hObject,'String',cell1ID);
+    %update Config file
+    hCSV = findobj('Tag','btnAnalysisFiles');
+    csvdata = get(hCSV,'UserData');
+    configfile =fullfile(csvdata.csvPath, 'neurites_config.csv');
+    if (exist(configfile, 'file') == 2)
+        M = readtable(configfile);
+        M.Cell1 = cell1ID;
+        writetable(M,configfile);
+        status = sprintf('Config file updated: %s',configfile);
+        updateStatus(handles,status);
+    end
+        
+    
+
 
 % --- Executes during object creation, after setting all properties.
 function editCell1_CreateFcn(hObject, eventdata, handles)
@@ -1206,7 +1227,24 @@ function editCell2_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of editCell2 as text
 %        str2double(get(hObject,'String')) returns contents of editCell2 as a double
-
+    cell1ID=get(hObject,'String');
+    if (iscell(cell1ID))
+        cell1ID = strjoin(cell1ID);
+    end
+    %Check label is valid for table headers
+    cell1ID = cleanlabel(cell1ID);
+    set(hObject,'String',cell1ID);
+    %update Config file
+    hCSV = findobj('Tag','btnAnalysisFiles');
+    csvdata = get(hCSV,'UserData');
+    configfile =fullfile(csvdata.csvPath, 'neurites_config.csv');
+    if (exist(configfile, 'file') == 2)
+        M = readtable(configfile);
+        M.Cell2 = cell1ID;
+        writetable(M,configfile);
+        status = sprintf('Config file updated: %s',configfile);
+        updateStatus(handles,status);
+    end
 
 % --- Executes during object creation, after setting all properties.
 function editCell2_CreateFcn(hObject, eventdata, handles)
