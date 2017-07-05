@@ -65,7 +65,8 @@ for j=1:length(t)
                 n0 = n; %set root
                 branches{n0.nodelevel}(1,1) = n0; %add
             end
-
+            bvol = 0;
+            bsa = 0;
             blength = 0;
             bcount = bcount+1;
 

@@ -24,7 +24,7 @@ function varargout = NeuritesAnnulusAppUI(varargin)
 %       set(hObject,'UserData',data); 
 % Edit the above text to modify the response to help NeuritesAnnulusAppUI
 
-% Last Modified by GUIDE v2.5 14-Sep-2016 17:50:36
+% Last Modified by GUIDE v2.5 05-Jul-2017 11:13:48
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -1402,4 +1402,69 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
    
     
 end
+
+
+
+% --- Executes on button press in btnCSVAnalysis.
+function btnCSVAnalysis_Callback(hObject, eventdata, handles)
+% hObject    handle to btnCSVAnalysis (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    h = findobj('Tag','menu_File_loadimage');
+    %data = h.UserData;
+    data = get(h,'UserData');
+     
+    hCSV = findobj('Tag','Menu_File_loadcsv');
+    csvdata = get(hCSV,'UserData');
+    updateStatus(handles,'Running Analysis ...');
+    if ( ~isempty(csvdata))
+        csv = fullfile(csvdata.csvPath, csvdata.csvFile);
+        
+        %Get scale factor
+        hScale = findobj('Tag','editScale');
+        scale = 1;%str2num(get(hScale,'String'));
+        hA = findobj('Tag','rbAnn');
+        annulus = get(hA,'Value');
+       
+        if (annulus)
+            %annulus
+            hID = findobj('Tag','editID');
+            id = str2double(get(hID,'String'));
+            hOD = findobj('Tag','editOD');
+            od = str2double(get(hOD,'String'));
+            shape = [id, od];
+            annulus = true;
+        else
+            %rectangle
+            annulus = false;
+            hID = findobj('Tag','editWidth');
+            width = str2double(get(hID,'String'));
+            hID = findobj('Tag','editHeight');
+            height = str2double(get(hID,'String'));
+            shape = [width,height];
+            hW = findobj('Tag','choiceDirection');
+            d1 = get(hW,'UserData');
+            direction = lower(d1(get(hW,'Value')));
+            direction = direction{1}; %string from cellstr
+            hSr = findobj('Tag','chkSingleRun');
+            if (get(hSr,'Value') > 0)
+                single = 1;      
+            else
+                single = 0;
+            end
+        end
+        
+        N = NeuritesCSVAnnulusAnalyser(csv, annulus, shape, scale);
+        updateStatus(handles,'Total regions found=%d', length(N.regions));
+        [colnames,tabledata] = N.generateTable();
+        htable = findobj('Tag','uitableResults');
+        set(htable,'data', tabledata, 'ColumnName', colnames);
+        outputfile = fullfile(csvdata.csvPath, 'neurites_csv_annulus.csv');
+        saveDataFile(outputfile,colnames,tabledata);
+    else
+        updateStatus(handles,'ERROR: CSV file not loaded');
+    end
+
+        
+        
 
