@@ -1410,10 +1410,7 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
 % hObject    handle to btnCSVAnalysis (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-    h = findobj('Tag','menu_File_loadimage');
-    %data = h.UserData;
-    data = get(h,'UserData');
-     
+    
     hCSV = findobj('Tag','Menu_File_loadcsv');
     csvdata = get(hCSV,'UserData');
     updateStatus(handles,'Running Analysis ...');
@@ -1432,11 +1429,11 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             id = str2double(get(hID,'String'));
             hOD = findobj('Tag','editOD');
             od = str2double(get(hOD,'String'));
-            shape = [id, od];
-            annulus = true;
+            shape = [id/2, od/2];
+            %annulus = true;
         else
             %rectangle
-            annulus = false;
+            %annulus = false;
             hID = findobj('Tag','editWidth');
             width = str2double(get(hID,'String'));
             hID = findobj('Tag','editHeight');
@@ -1453,14 +1450,21 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
                 single = 0;
             end
         end
-        
+        figure
         N = NeuritesCSVAnnulusAnalyser(csv, annulus, shape, scale);
-        updateStatus(handles,'Total regions found=%d', length(N.regions));
-        [colnames,tabledata] = N.generateTable();
-        htable = findobj('Tag','uitableResults');
-        set(htable,'data', tabledata, 'ColumnName', colnames);
-        outputfile = fullfile(csvdata.csvPath, 'neurites_csv_annulus.csv');
-        saveDataFile(outputfile,colnames,tabledata);
+        msg = sprintf('Total regions found=%d', length(N.regions))
+        
+        if (~isempty(N.regions))
+            [colnames,tabledata] = N.generateTable();
+            htable = findobj('Tag','uitableResults');
+            set(htable,'data', tabledata, 'ColumnName', colnames);
+            outputfile = fullfile(csvdata.csvPath, 'neurites_csv_annulus.csv');
+            saveDataFile(outputfile,colnames,tabledata);
+            msg = msg + " Output saved to " + outputfile;
+            updateStatus(handles,msg);
+        else
+            updateStatus(handles,'ERROR: No intersecting regions found');
+        end
     else
         updateStatus(handles,'ERROR: CSV file not loaded');
     end

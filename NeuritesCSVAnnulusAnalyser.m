@@ -24,12 +24,12 @@ classdef NeuritesCSVAnnulusAnalyser
             [cx,cy,area,perim,x,y] = findsomacentroid(tree);
             obj.soma = NeuritesSoma(area,perim,[cx,cy]);
             obj.tree = loadCSVTree(csvfile, soma, obj.scale);
-            figure
+
             plotdigineuron(obj.tree,obj.colorstring(1));
             hold on
             if (annulus) % assumes shape with [innerdiam,outerdiam]
-                ho = circle(cx,cy,shape(1)/2,'c');
-                hi = circle(cx,cy,shape(2)/2,'c');
+                ho = circle(cx,cy,shape(1),'c');
+                hi = circle(cx,cy,shape(2),'c');
                 obj.regions = obj.findannulusregions(ho,hi);
             else % assumes shape with [width, height]
                 obj.regions = obj.findrectangleregions(); % [x,y,width,height]
@@ -59,31 +59,77 @@ classdef NeuritesCSVAnnulusAnalyser
                 N = branches{1,1}(1,1); %root node
                 out = [];
                 out = inOrder(data, N, out);
+                %filter those within range soma dist
+                filteredout = arrayfun(@(n) compareDistanceToSoma(obj.soma.centroid, n.points,obj.shape(1)), out)
+                out = out(filteredout)
                 %figure
                 hold on
                 for h=1:length(out)
                     N0 = out(h);
                     x1 = N0.points(:,1);
                     y1 = N0.points(:,2);
-                    sprintf('Cell node id=%s', N0.id)
+                    sprintf('Cell node id=%d', N0.id)
                     plot(x1,y1,'g-')
                     [ix,iy] =polyxpoly(x1,y1,[ho.XData,hi.XData],[ho.YData,hi.YData]);
                     if (~isempty(ix))
-                        %have intersection with outer and inner
-                        plot(ix,iy,'mx');
-                        [in,on] = inpolygon(x1,y1,ix,iy);
-                        plot(x1(in),y1(in),'y+');
-                        segx = cat(1,ix(1),x1(in),ix(2));
-                        segy = cat(1,iy(1),y1(in),iy(2));
-                        ln = getdistance(segx,segy);
-
-                        r = sqrt((N0.vol/(pi * N0.branchlength)))
-                        v = pi * r*r * ln;
-                        sa = 2 * pi * r * (r + ln);
-                        ctr =ctr+1;
-                        regions{ctr}=struct('x',segx,'y',segy,'neurite', N0, 'length',ln,'vol', v, 'sa', sa);
-
-                    end
+                        if(length(ix) > 1)
+                            %have intersection with outer and inner
+                            plot(ix,iy,'mx');
+                            [in,on] = inpolygon(x1,y1,ix,iy);
+                            %plot(x1(in),y1(in),'y+');
+                            segx = cat(1,ix(1),x1(in),ix(2));
+                            segy = cat(1,iy(1),y1(in),iy(2));
+                                  
+                        else %only one intersection 
+                            %direction detect
+                            sx = pdist2(obj.soma.centroid,[ix,iy])
+                            s0 = pdist2(obj.soma.centroid,[x1(1),y1(1)])
+                            s1 = pdist2(obj.soma.centroid,[x1(end),y1(end)])
+                            %forward
+                            if (s0 < s1)
+                                fwd = true
+                            else
+                                fwd = false
+                            end
+                            p =pdist2([ix,iy],[x1,y1])
+                            min(p)
+                            idx = find(p ==min(p))
+                            
+                            %detect inner or outer
+                            [ix1,iy1] =polyxpoly(x1,y1,ho.XData,ho.YData);
+                            
+                            if (~isempty(ix1)) %inner 
+                                if (fwd) %add to beginning
+                                    segx = cat(1, ix(1), x1(idx+1:end))
+                                    segy = cat(1, iy(1), y1(idx+1:end))
+                                else %add to end
+                                    segx = cat(1, x1(1:idx), ix(1))
+                                    segy = cat(1, y1(1:idx), iy(1))
+                                end
+                                    
+                            else   %outer 
+                                if (fwd)
+                                    segx = cat(1, x1(1:idx), ix(1))
+                                    segy = cat(1, y1(1:idx), iy(1))
+                                else
+                                    segx = cat(1, ix(1), x1(idx+1:end))
+                                    segy = cat(1, iy(1), y1(idx+1:end))
+                                end
+                            end
+                        end
+                    else % no intersection
+                        segx = x1;
+                        segy = y1;
+                    end         
+                        
+                    plot(segx,segy,'y+');
+                    ln = getdistance(segx,segy);
+                    r = sqrt((N0.vol/(pi * N0.branchlength)))
+                    v = pi * r*r * ln;
+                    sa = 2 * pi * r * (r + ln);
+                    ctr =ctr+1;
+                    regions{ctr}=struct('x',segx,'y',segy,'neurite', N0, 'length',ln,'vol', v, 'sa', sa);
+                   
                     %hold off
                 end
             end
@@ -254,6 +300,13 @@ if (~isempty(nnode.rightnode))
 end
 
 
+end
+
+%compare distance to soma of begin and end of points greater than d
+function val = compareDistanceToSoma(centroid,points, d)
+    p1 = pdist2(centroid,points(1,:));
+    p2 = pdist2(centroid,points(end,:));
+    val = ((p1 > d) || (p2 > d));
 end
 
 
