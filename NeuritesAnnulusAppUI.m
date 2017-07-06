@@ -1417,9 +1417,10 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
     if ( ~isempty(csvdata))
         csv = fullfile(csvdata.csvPath, csvdata.csvFile);
         
-        %Get scale factor
+        %Get scale factor - not reqd?
         hScale = findobj('Tag','editScale');
         scale = 1;%str2num(get(hScale,'String'));
+        %detect annulus or rectangle
         hA = findobj('Tag','rbAnn');
         annulus = get(hA,'Value');
        
@@ -1444,11 +1445,8 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             direction = lower(d1(get(hW,'Value')));
             direction = direction{1}; %string from cellstr
             hSr = findobj('Tag','chkSingleRun');
-            if (get(hSr,'Value') > 0)
-                single = 1;      
-            else
-                single = 0;
-            end
+            single = get(hSr,'Value');
+
         end
         figure
         N = NeuritesCSVAnnulusAnalyser(csv, annulus, shape, scale);
@@ -1460,6 +1458,13 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             set(htable,'data', tabledata, 'ColumnName', colnames);
             outputfile = fullfile(csvdata.csvPath, 'neurites_csv_annulus.csv');
             saveDataFile(outputfile,colnames,tabledata);
+            %Also output xy coords
+            xyfile1 = fullfile(csvdata.csvPath, 'neurites_csv_annulus_segments.csv');
+            xyfile2 = fullfile(csvdata.csvPath, 'neurites_csv_annulus_xy.csv');
+            [T1,T2] = N.outputSegmentXY();
+            writetable(T1,xyfile1);
+            writetable(T2,xyfile2);
+            
             msg = msg + " Output saved to " + outputfile;
             updateStatus(handles,msg);
         else

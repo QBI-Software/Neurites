@@ -7,12 +7,14 @@ classdef NeuritesCSVAnnulusAnalyser
         scale = 1; %default if using csv data
         regions %list of matching region x,y coords, NeuritesNode, length, sa, vol
         shape
+        annulus
     end
     methods
         function obj = NeuritesCSVAnnulusAnalyser(csvfile, annulus, shape, scale)
             obj.scale = scale;
             obj.csvfile = csvfile;
             obj.shape = shape;
+            obj.annulus = annulus;
             % Load data via digineuron
             T = readtable(csvfile);
             centroidxy = [mean(T.StartX) mean(T.StartY)]; %estimate from CSV data
@@ -31,8 +33,8 @@ classdef NeuritesCSVAnnulusAnalyser
                 ho = circle(cx,cy,shape(1),'c');
                 hi = circle(cx,cy,shape(2),'c');
                 obj.regions = obj.findannulusregions(ho,hi);
-            else % assumes shape with [width, height]
-                obj.regions = obj.findrectangleregions(); % [x,y,width,height]
+            else % assumes shape with [x,y,width,height]
+                obj.regions = obj.findrectangleregions(); 
             end
         end
 
@@ -60,7 +62,7 @@ classdef NeuritesCSVAnnulusAnalyser
                 out = [];
                 out = inOrder(data, N, out);
                 %filter those within range soma dist
-                filteredout = arrayfun(@(n) compareDistanceToSoma(obj.soma.centroid, n.points,obj.shape(1)), out)
+                filteredout = arrayfun(@(n) compareDistanceToSoma(obj.soma.centroid, n.points,obj.shape), out)
                 out = out(filteredout)
                 %figure
                 hold on
@@ -82,47 +84,29 @@ classdef NeuritesCSVAnnulusAnalyser
                                   
                         else %only one intersection 
                             %direction detect
-                            sx = pdist2(obj.soma.centroid,[ix,iy])
-                            s0 = pdist2(obj.soma.centroid,[x1(1),y1(1)])
-                            s1 = pdist2(obj.soma.centroid,[x1(end),y1(end)])
-                            %forward
-                            if (s0 < s1)
-                                fwd = true
-                            else
-                                fwd = false
-                            end
-                            p =pdist2([ix,iy],[x1,y1])
-                            min(p)
-                            idx = find(p ==min(p))
+                            fwd = getDirectionNeurite(obj.soma.centroid,x1,y1);
+                            p =pdist2([ix,iy],[x1,y1]);
+                            idx = find(p ==min(p));
                             
                             %detect inner or outer
                             [ix1,iy1] =polyxpoly(x1,y1,ho.XData,ho.YData);
                             
-                            if (~isempty(ix1)) %inner 
-                                if (fwd) %add to beginning
-                                    segx = cat(1, ix(1), x1(idx+1:end))
-                                    segy = cat(1, iy(1), y1(idx+1:end))
-                                else %add to end
-                                    segx = cat(1, x1(1:idx), ix(1))
-                                    segy = cat(1, y1(1:idx), iy(1))
-                                end
-                                    
-                            else   %outer 
-                                if (fwd)
-                                    segx = cat(1, x1(1:idx), ix(1))
-                                    segy = cat(1, y1(1:idx), iy(1))
-                                else
-                                    segx = cat(1, ix(1), x1(idx+1:end))
-                                    segy = cat(1, iy(1), y1(idx+1:end))
-                                end
+                            if ((~isempty(ix1) && fwd) || (isempty(ix1) && ~fwd))  
+                                    segx = cat(1, ix(1), x1(idx+1:end));
+                                    segy = cat(1, iy(1), y1(idx+1:end));
+                            else %add to end
+                                    segx = cat(1, x1(1:idx), ix(1));
+                                    segy = cat(1, y1(1:idx), iy(1));
                             end
+                                    
+                         
                         end
                     else % no intersection
                         segx = x1;
                         segy = y1;
                     end         
                         
-                    plot(segx,segy,'y+');
+                    plot(segx,segy,'m+');
                     ln = getdistance(segx,segy);
                     r = sqrt((N0.vol/(pi * N0.branchlength)))
                     v = pi * r*r * ln;
@@ -138,6 +122,15 @@ classdef NeuritesCSVAnnulusAnalyser
         
         function regions = findrectangleregions(obj,shape)
             regions = {};
+            ctr = 0;
+
+            for j=1:length(obj.tree)
+                branches = obj.tree{j,1};
+                data = loadById(branches);
+                N = branches{1,1}(1,1); %root node
+                out = [];
+                out = inOrder(data, N, out);
+            end
         end
 
         
@@ -149,7 +142,7 @@ classdef NeuritesCSVAnnulusAnalyser
                 'Seg_length' 'Seg_vol' 'Seg_sa' };
            
             tabledata =zeros(length(obj.regions),length(colnames)); %preallocate
-            annulusarea = ((obj.shape(1) /2)^2 * pi) - ((obj.shape(2) /2)^2 * pi);
+            annulusarea = ((obj.shape(2) /2)^2 * pi) - ((obj.shape(1) /2)^2 * pi);
             for i=1:length(obj.regions)
                 r = obj.regions{1,i};
                 row1 = [i obj.soma.centroid(1) obj.soma.centroid(2) annulusarea ...
@@ -163,6 +156,29 @@ classdef NeuritesCSVAnnulusAnalyser
             end
             tabledata( ~any(tabledata,2), : ) = [];  %remove zero rows
         end
+        
+        %Output segment data corresponding to original CSV file
+        function [T1,T2] = outputSegmentXY(obj)
+            T1 = readtable(obj.csvfile); 
+            %load row idxs
+            idxs = [];
+            %collect all xy pts - may be duplicates
+            allpts = []; 
+
+            for i=1:length(obj.regions)
+                r = obj.regions{1,i};
+                %idxs = cat(1, idxs,r.neurite.id); %this is only branch last pt
+                %fR = find((StartY >= yC-tol) & (StartY <=yC+tol));
+                a = find(ismember(r.neurite.points,r.x));
+                ais = r.neurite.id - (length(r.neurite.points) - a);
+                idxs = cat(1, idxs,ais);
+                allpts = cat(1, allpts,[r.x r.y]);
+
+            end
+            T1 = T1(idxs,:);
+            T2 = table(allpts(:,1),allpts(:,2),'VariableNames',{'X' 'Y'});
+        end
+        
 
     end %end class methods
 end %end class
@@ -173,6 +189,14 @@ function ln = getdistance(x,y)
     for i=1:length(x) - 1 
         ln = ln + pdist([x(i:i+1) y(i:i+1)]);
     end
+end
+
+%determine if neurite is radiating outward or wrapping back towards soma
+function fwd = getDirectionNeurite(centroid, x1,y1)
+    s0 = pdist2(centroid,[x1(1),y1(1)]);
+    s1 = pdist2(centroid,[x1(end),y1(end)]);
+    %forward
+    fwd = (s0 < s1);
 end
 
  function h = circle(x,y,r, color)
@@ -302,11 +326,16 @@ end
 
 end
 
-%compare distance to soma of begin and end of points greater than d
-function val = compareDistanceToSoma(centroid,points, d)
-    p1 = pdist2(centroid,points(1,:));
-    p2 = pdist2(centroid,points(end,:));
-    val = ((p1 > d) || (p2 > d));
+%compare distance to soma of begin and end of points greater than shape
+% [innerdiam,outerdiam]
+function val = compareDistanceToSoma(centroid,points, shape)
+    id = shape(1); %innerdiam
+    od = shape(2); %outerdiam
+    p1 = pdist2(centroid,points(1,:)); %distance from start of points
+    p2 = pdist2(centroid,points(end,:)); %distance from end of points
+    val1 = ((p1 > id) || (p2 > id));
+    val2 = (p1 > od && p2 > od);
+    val = xor(val1,val2); %true if either are true but not both
 end
 
 
