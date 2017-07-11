@@ -1465,7 +1465,7 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             writetable(T1,xyfile1);
             writetable(T2,xyfile2);
             
-            msg = msg + " Output saved to " + outputfile;
+            msg = msg + ' Output saved to ' + outputfile;
             updateStatus(handles,msg);
         else
             updateStatus(handles,'ERROR: No intersecting regions found');
