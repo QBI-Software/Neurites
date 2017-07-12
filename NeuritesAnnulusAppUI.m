@@ -1260,7 +1260,7 @@ function pbRectangle_Callback(hObject, eventdata, handles)
     height = str2double(get(hfRectHeight,'String'));
     width = str2double(get(hfRectWidth,'String'));
     centroid =N.soma.centroid;
-    mask = applyRectangle(width,height, scale, centroid);
+    [pos,mask] = applyRectangle(width,height, scale, centroid);
     N = N.loadMask(mask);
     imshow(N.maskedI);
     roifile = fullfile(hfdata.imagePath, 'neurites_rectangle.tif');
@@ -1268,6 +1268,12 @@ function pbRectangle_Callback(hObject, eventdata, handles)
     status = sprintf('Rectangle mask created: %s.', roifile);
     %Update analyser data
     hfdata.analyser = N;
+    %Add dimensions to userdata of editHeight widget
+    hfdata.position = pos;
+    %update in case changes made
+    set(hfRectHeight,'String', pos(3)/scale);
+    set(hfRectWidth,'String', pos(4)/scale);
+    
     set(hfiles,'UserData',hfdata);
     updateStatus(handles,status);
     
@@ -1425,31 +1431,44 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
         annulus = get(hA,'Value');
        
         if (annulus)
-            %annulus
             hID = findobj('Tag','editID');
             id = str2double(get(hID,'String'));
             hOD = findobj('Tag','editOD');
             od = str2double(get(hOD,'String'));
             shape = [id/2, od/2];
-            %annulus = true;
         else
             %rectangle
-            %annulus = false;
             hID = findobj('Tag','editWidth');
             width = str2double(get(hID,'String'));
             hID = findobj('Tag','editHeight');
             height = str2double(get(hID,'String'));
-            shape = [width,height];
             hW = findobj('Tag','choiceDirection');
             d1 = get(hW,'UserData');
             direction = lower(d1(get(hW,'Value')));
             direction = direction{1}; %string from cellstr
             hSr = findobj('Tag','chkSingleRun');
+            %Check if Manual rectangle
+            hf = findobj('Tag','menu_File_loadimage');
+            data = get(hf,'UserData');
+            if (isfield(data,'position'))
+                pos = get(data,'position');
+                hfShiftx = findobj('Tag','editShiftx');
+                hfShifty = findobj('Tag','editShifty');
+                shiftx = str2double(get(hfShiftx,'String'));
+                shifty = str2double(get(hfShifty,'String'));
+                pos_x = (pos(1) - shiftx)/scale;
+                pos_y = -(pos(2) + shifty)/scale;
+                shape = [pos_x,pos_y,width,height];
+            else
+                shape = [width,height];
+            end
             single = get(hSr,'Value');
-
+            if (single)
+               direction =0;
+            end
         end
         figure
-        N = NeuritesCSVAnnulusAnalyser(csv, annulus, shape, scale);
+        N = NeuritesCSVAnnulusAnalyser(csv, annulus, shape, scale, direction);
         msg = sprintf('Total regions found=%d', length(N.regions))
         
         if (~isempty(N.regions))
@@ -1465,7 +1484,7 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             writetable(T1,xyfile1);
             writetable(T2,xyfile2);
             
-            msg = msg + ' Output saved to ' + outputfile;
+            msg = sprintf('%s Output saved to %s',msg, outputfile);
             updateStatus(handles,msg);
         else
             updateStatus(handles,'ERROR: No intersecting regions found');

@@ -5,8 +5,8 @@
 %              Detects and analyses regions of apposition (potential synaptic
 %              regions) of overlapping dendritic fields of two neurons.
 %           2. Annulus Analysis :
-%              Analyses the neurites of a single neuron under an annulus. 
-%              Also presents information on a dendrogram with higlighted branches.
+%              Analyses the neurites of a single neuron under an annulus or rectangl. 
+%
 % 
 % Requires:
 %   Matlab Image Processing Toolbox
@@ -19,6 +19,7 @@
 % 
 % Version: 2.0 (Oct 2015) - Synapse analysis
 % Version: 3.0 (Aug 2016) - Annulus analysis
+% Version: 4.0 (Jun 2017) - CSV Annulus/rectangle analysis
 % Developer: Liz Cooper-Williams,e.cooperwilliams@uq.edu.au
 % Copyright {2017} { Queensland Brain Institute, University of Qld }
 % 

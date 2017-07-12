@@ -1,4 +1,4 @@
-function outermask = applyRectangle(w,h, scale, centroid)
+function [position,outermask] = applyRectangle(w,h, scale, centroid)
         rw = (h * scale);
         rh = (w * scale);
         x = centroid(1) - (rw/2);  % min_x

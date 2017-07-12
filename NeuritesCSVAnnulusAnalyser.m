@@ -1,20 +1,23 @@
 classdef NeuritesCSVAnnulusAnalyser
     properties
-        csvfile 
-        tree
-        soma
-        colorstring = 'rgkbgrymckbgrymc';
-        scale = 1; %default if using csv data
-        regions %list of matching region x,y coords, NeuritesNode, length, sa, vol
-        shape
-        annulus
+        csvfile     %CSV filename
+        tree        %CSV Tree with NeuritesNode objects
+        soma        %NeuritesSoma object
+        colorstring = 'bmcykbgymc';
+        scale = 1;  %allows for adjustment
+        regions     %list of matching region x,y coords, NeuritesNode, length, sa, vol
+        shape       %[inner diam, outer diam] for annulus, [x,y,width,height] for rectangle
+        annulus     %boolean - if annulus or rectangle
+        direction   %repeated rectangles in one direction: up,down,right,left
+        ctr         %number of matching segments in rois
     end
     methods
-        function obj = NeuritesCSVAnnulusAnalyser(csvfile, annulus, shape, scale)
+        function obj = NeuritesCSVAnnulusAnalyser(csvfile, annulus, shape, scale, direction)
             obj.scale = scale;
             obj.csvfile = csvfile;
             obj.shape = shape;
             obj.annulus = annulus;
+            obj.direction = direction;
             % Load data via digineuron
             T = readtable(csvfile);
             centroidxy = [mean(T.StartX) mean(T.StartY)]; %estimate from CSV data
@@ -27,18 +30,104 @@ classdef NeuritesCSVAnnulusAnalyser
             obj.soma = NeuritesSoma(area,perim,[cx,cy]);
             obj.tree = loadCSVTree(csvfile, soma, obj.scale);
 
-            plotdigineuron(obj.tree,obj.colorstring(1));
+            plotdigineuron(obj.tree,'r');
             hold on
+            obj.ctr = 0;
             if (annulus) % assumes shape with [innerdiam,outerdiam]
-                ho = circle(cx,cy,shape(1),'c');
-                hi = circle(cx,cy,shape(2),'c');
-                obj.regions = obj.findannulusregions(ho,hi);
+                hi = circle(cx,cy,shape(1),'c');
+                ho = circle(cx,cy,shape(2),'c');
+                [obj.ctr,obj.regions] = obj.findannulusregions(hi,ho);
             else % assumes shape with [x,y,width,height]
-                obj.regions = obj.findrectangleregions(); 
+                upheight = round(abs(max(T.StartY)));
+                downheight = round(abs(min(T.StartY)));
+                leftwidth = round(abs(min(T.StartX)));
+                rightwidth = round(abs(max(T.StartX)));
+                x = cx;
+                y = cy;
+                width = shape(1);
+                height = shape(2);
+                
+                switch direction
+                    case 'up'
+                        numrects = ceil(upheight/height)
+                        x = x - width/2;
+                        for i = 1:numrects 
+                            y = y + height;
+                            plot(x,y,'mx');
+                            xdata = [x,x+width,x+width,x,x];
+                            ydata = [y,y,y-height,y-height,y];
+                            plot(xdata,ydata,obj.colorstring(i));
+                            [ctr,obj.regions{i}] = obj.findrectangleregions(xdata,ydata);
+                            obj.ctr = obj.ctr + ctr;
+                        end
+
+                    case 'down'
+                        numrects = ceil(downheight/height)
+                        x = x - width/2;
+                        for i = 1:numrects 
+                            plot(x,y,'mx');
+                            xdata = [x,x+width,x+width,x,x];
+                            ydata = [y,y,y-height,y-height,y];
+                            plot(xdata,ydata,obj.colorstring(i));
+                            [ctr,obj.regions{i}] = obj.findrectangleregions(xdata,ydata);
+                            obj.ctr = obj.ctr + ctr;
+                            y = y - height;
+                        end
+                    case 'left'
+                        numrects = ceil(leftwidth/width)
+                        y = y + height/2;
+                        for i = 1:numrects 
+                            x = x - width;
+                            plot(x,y,'mx');
+                            xdata = [x,x+width,x+width,x,x];
+                            ydata = [y,y,y-height,y-height,y];
+                            plot(xdata,ydata,obj.colorstring(i));
+                            [ctr,obj.regions{i}] = obj.findrectangleregions(xdata,ydata);
+                            obj.ctr = obj.ctr + ctr;
+                            
+                        end
+                    case 'right'
+                        numrects = ceil(rightwidth/width)
+                        y = y + height/2;
+                        for i = 1:numrects 
+                            
+                            plot(x,y,'mx');
+                            xdata = [x,x+width,x+width,x,x];
+                            ydata = [y,y,y-height,y-height,y];
+                            plot(xdata,ydata,obj.colorstring(i));
+                            [ctr,obj.regions{i}] = obj.findrectangleregions(xdata,ydata);
+                            obj.ctr = obj.ctr + ctr;
+                            x = x + width;
+                        end
+                    case 0 %all dims provided
+                        if (length(shape) == 4)
+                            x = shape(1);
+                            y = shape(2);
+                            width = shape(3);
+                            height = shape(4);
+                            plot(x,y,'mx');
+                            xdata = [x,x+width,x+width,x,x];
+                            ydata = [y,y,y-height,y-height,y];
+                            plot(xdata,ydata,'g');
+                            [ctr,obj.regions{1}] = obj.findrectangleregions(xdata,ydata);
+                            obj.ctr = obj.ctr + ctr;
+                        else %centred around soma
+                            x = cx - width/2;
+                            y = cy + height/2; 
+                            plot(x,y,'mx');
+                            xdata = [x,x+width,x+width,x,x];
+                            ydata = [y,y,y-height,y-height,y];
+                            plot(xdata,ydata,'g');
+                            [ctr,obj.regions{1}] = obj.findrectangleregions(xdata,ydata);
+                            obj.ctr = obj.ctr + ctr;
+                        end
+
+                end
+                 
             end
         end
 
-
+        
         function obj = set.regions(obj,segments)
             if (~isempty(segments))
                 obj.regions = segments;
@@ -50,7 +139,7 @@ classdef NeuritesCSVAnnulusAnalyser
        
 
         %[xi,yi] = polyxpoly(x1,y1,x2,y2) returns the intersection points of two polylines in a planar, Cartesian system
-        function regions = findannulusregions(obj, ho,hi)
+        function [ctr,regions] = findannulusregions(obj, hi,ho)
             
             regions = {};
             ctr = 0;
@@ -62,34 +151,48 @@ classdef NeuritesCSVAnnulusAnalyser
                 out = [];
                 out = inOrder(data, N, out);
                 %filter those within range soma dist
-                filteredout = arrayfun(@(n) compareDistanceToSoma(obj.soma.centroid, n.points,obj.shape), out)
-                out = out(filteredout)
+                filteredout = arrayfun(@(n) compareDistanceToSoma(obj.soma.centroid, n.points,obj.shape), out);
+                out = out(filteredout);
                 %figure
                 hold on
                 for h=1:length(out)
                     N0 = out(h);
                     x1 = N0.points(:,1);
                     y1 = N0.points(:,2);
-                    sprintf('Cell node id=%d', N0.id)
-                    plot(x1,y1,'g-')
-                    [ix,iy] =polyxpoly(x1,y1,[ho.XData,hi.XData],[ho.YData,hi.YData]);
+                    sprintf('Cell node id=%d, h=%d', N0.id,h)
+                    plot(x1,y1,'g-');
+                    %[ix,iy] =polyxpoly(x1,y1,[ho.XData,hi.XData],[ho.YData,hi.YData]);
+                    [ix1,iy1,ii1] =polyxpoly(x1,y1,hi.XData,hi.YData); %inner match
+                    [ix2,iy2,ii2] =polyxpoly(x1,y1,ho.XData,ho.YData); %outer match
+                    ix = [ix1,ix2];
+                    iy = [iy1,iy2];
+                    multiseg ={};
                     if (~isempty(ix))
-                        if(length(ix) > 1)
+                        if(length(ix) == 2)
                             %have intersection with outer and inner
                             plot(ix,iy,'mx');
-                            [in,on] = inpolygon(x1,y1,ix,iy);
-                            %plot(x1(in),y1(in),'y+');
+                            %[in,on] = inpolygon(x1,y1,ix,iy); %intermittent fails
+                            [in1,on1] = inpolygon(x1,y1,ho.XData,ho.YData); % all in outer circle
+                            [in2,on2] = inpolygon(x1,y1,hi.XData,hi.YData); % all in inner circle 
+                            in = xor(in1,in2);
+                            plot(x1(in),y1(in),'go');
                             segx = cat(1,ix(1),x1(in),ix(2));
                             segy = cat(1,iy(1),y1(in),iy(2));
-                                  
+                        elseif(length(ix) > 2)
+                            if (~isempty(ii1))
+                                multiseg = findsubsegments(multiseg,ix1,iy1,x1,y1,hi.XData,hi.YData);
+                            else
+                                multiseg = findsubsegments(multiseg,ix2,iy2,x1,y1,ho.XData,ho.YData);
+                            end
+                            
                         else %only one intersection 
                             %direction detect
                             fwd = getDirectionNeurite(obj.soma.centroid,x1,y1);
-                            p =pdist2([ix,iy],[x1,y1]);
-                            idx = find(p ==min(p));
+                            p = pdist2([ix,iy],[x1,y1]);
+                            idx = find(p == min(p));
                             
                             %detect inner or outer
-                            [ix1,iy1] =polyxpoly(x1,y1,ho.XData,ho.YData);
+                            %[ix1,iy1] =polyxpoly(x1,y1,hi.XData,hi.YData);
                             
                             if ((~isempty(ix1) && fwd) || (isempty(ix1) && ~fwd))  
                                     segx = cat(1, ix(1), x1(idx+1:end));
@@ -105,14 +208,20 @@ classdef NeuritesCSVAnnulusAnalyser
                         segx = x1;
                         segy = y1;
                     end         
-                        
-                    plot(segx,segy,'m+');
-                    ln = getdistance(segx,segy);
-                    r = sqrt((N0.vol/(pi * N0.branchlength)))
-                    v = pi * r*r * ln;
-                    sa = 2 * pi * r * (r + ln);
-                    ctr =ctr+1;
-                    regions{ctr}=struct('x',segx,'y',segy,'neurite', N0, 'length',ln,'vol', v, 'sa', sa);
+                    if (isempty(multiseg))
+                        multiseg{1} = struct('x',segx,'y',segy);
+                    end
+                    for i=1:length(multiseg)
+                        segx = multiseg{i}.x;
+                        segy = multiseg{i}.y;
+                        plot(segx,segy,'m+');
+                        ln = getdistance(segx,segy);
+                        r = sqrt((N0.vol/(pi * N0.branchlength)));
+                        v = pi * r*r * ln;
+                        sa = 2 * pi * r * (r + ln);
+                        ctr =ctr+1;
+                        regions{ctr}=struct('x',segx,'y',segy,'neurite', N0, 'length',ln,'vol', v, 'sa', sa);
+                    end
                    
                     %hold off
                 end
@@ -120,9 +229,9 @@ classdef NeuritesCSVAnnulusAnalyser
 
         end
         
-        function regions = findrectangleregions(obj,shape)
+        function [ctr,regions] = findrectangleregions(obj,xdata,ydata)
             regions = {};
-            ctr = 0;
+            ctr = 0; %length(obj.regions);
 
             for j=1:length(obj.tree)
                 branches = obj.tree{j,1};
@@ -130,6 +239,84 @@ classdef NeuritesCSVAnnulusAnalyser
                 N = branches{1,1}(1,1); %root node
                 out = [];
                 out = inOrder(data, N, out);
+                hold on
+                for h=1:length(out)
+                    N0 = out(h);
+                    x1 = N0.points(:,1);
+                    y1 = N0.points(:,2);
+                    sprintf('Cell node id=%d, h=%d', N0.id,h)
+                    plot(x1,y1,'g-');
+                    [ix,iy] = polyxpoly(x1,y1,xdata,ydata); % edges
+                    [in,on] = inpolygon(x1,y1,xdata,ydata); % contents
+                    multiseg ={};
+                    if (~isempty(in(in==true)))
+                        switch length(ix)
+                            case 2
+                                segx = cat(1,ix(1),x1(in),ix(2));
+                                segy = cat(1,iy(1),y1(in),iy(2));
+                            case 1
+                                %prepend or postpend
+                                fwd = getDirectionNeurite(obj.soma.centroid,x1,y1);
+                                p = pdist2([ix,iy],[x1(in),y1(in)]);
+                                idx = find(p == min(p));
+
+                                if ((idx <= 1 && fwd) || (idx >= length(x1(in)) && ~fwd))  
+                                        segx = cat(1, ix(1), x1(in));
+                                        segy = cat(1, iy(1), y1(in));
+                                else %add to end
+                                        segx = cat(1, x1(in), ix(1));
+                                        segy = cat(1, y1(in), iy(1));
+                                end
+                                %segx = cat(1,ix(1),x1(in));
+                                %segy = cat(1,iy(1),y1(in));
+                            case 0
+                                segx = x1(in);
+                                segy = y1(in);
+                            otherwise
+                                %multiseg = findsubsegments(multiseg,ix,iy,x1,y1,xdata,ydata);
+                                p = pdist2([ix,iy],[x1,y1]);
+                                s = size(p);
+                                mc = length(multiseg) + 1;
+                                start = 0;
+                                segs =[];
+                                for i=1:s(1)
+                                    r = p(i,:); %per row
+                                    idx = find(r == min(r)) %find idx of least distance from neurite
+                                    segs(i) = idx;
+                                end
+                                sortsegs = sort(segs);
+                                for i=1:length(sortsegs)
+                                    %Split neurite into segs
+                                    segx = x1(start+1:sortsegs(i)-1);
+                                    segy = y1(start+1:sortsegs(i)-1);
+                                    [in,on] = inpolygon(segx,segy,xdata,ydata);
+                                    if (~isempty(in(in==true)))
+                                        segx = x1(start:sortsegs(i));
+                                        segy = y1(start:sortsegs(i));
+                                        multiseg{mc} = struct('x',segx,'y',segy);
+                                    end
+                                    start = sortsegs(i);
+                                end
+                                    
+                                        
+                                        
+                        end
+                        if (isempty(multiseg))
+                            multiseg{1} = struct('x',segx,'y',segy);
+                        end
+                        for i=1:length(multiseg)
+                            segx = multiseg{i}.x;
+                            segy = multiseg{i}.y;
+                            plot(segx,segy,'m+');
+                            ln = getdistance(segx,segy);
+                            r = sqrt((N0.vol/(pi * N0.branchlength)))
+                            v = pi * r*r * ln;
+                            sa = 2 * pi * r * (r + ln);
+                            ctr =ctr+1;
+                            regions{ctr}=struct('x',segx,'y',segy,'neurite', N0, 'length',ln,'vol', v, 'sa', sa);
+                        end
+                    end
+                end
             end
         end
 
@@ -141,18 +328,42 @@ classdef NeuritesCSVAnnulusAnalyser
                 'Branch_angle' 'Branch_vol' 'Branch_sa' ...
                 'Seg_length' 'Seg_vol' 'Seg_sa' };
            
-            tabledata =zeros(length(obj.regions),length(colnames)); %preallocate
-            annulusarea = ((obj.shape(2) /2)^2 * pi) - ((obj.shape(1) /2)^2 * pi);
-            for i=1:length(obj.regions)
-                r = obj.regions{1,i};
-                row1 = [i obj.soma.centroid(1) obj.soma.centroid(2) annulusarea ...
-                    r.neurite.tree r.neurite.nodelevel r.neurite.branchlength r.neurite.id ...
-                    r.neurite.anglearc r.neurite.vol r.neurite.sa ...
-                    r.length r.vol r.sa];
+            
+            if (obj.annulus)
+                tabledata =zeros(length(obj.ctr),length(colnames)); %preallocate
+                area = ((obj.shape(2))^2 * pi) - ((obj.shape(1))^2 * pi);
+                for i=1:length(obj.regions)
+                    r = obj.regions{1,i};
+                    row1 = [i obj.soma.centroid(1) obj.soma.centroid(2) area ...
+                        r.neurite.tree r.neurite.nodelevel r.neurite.branchlength r.neurite.id ...
+                        r.neurite.anglearc r.neurite.vol r.neurite.sa ...
+                        r.length r.vol r.sa];
 
-                %tabledata = cat(1,tabledata,row1);
-                tabledata(i,:) = row1;
+                    %tabledata = cat(1,tabledata,row1);
+                    tabledata(i,:) = row1;
 
+                end
+            else %rectangles
+                tabledata =zeros(length(obj.ctr),length(colnames)); %preallocate
+                if (length(obj.shape) ==2)
+                    area = obj.shape(1) * obj.shape(2);
+                else
+                    area = obj.shape(3) * obj.shape(4);
+                end
+                for i=1:length(obj.regions)
+                    region = obj.regions{1,i};
+                    for j=1:length(region)
+                        r = region{1,j};
+                        row1 = [i obj.soma.centroid(1) obj.soma.centroid(2) area ...
+                            r.neurite.tree r.neurite.nodelevel r.neurite.branchlength r.neurite.id ...
+                            r.neurite.anglearc r.neurite.vol r.neurite.sa ...
+                            r.length r.vol r.sa];
+
+                    %tabledata = cat(1,tabledata,row1);
+                        tabledata(j+i-1,:) = row1;
+                    end
+
+                end
             end
             tabledata( ~any(tabledata,2), : ) = [];  %remove zero rows
         end
@@ -179,7 +390,7 @@ classdef NeuritesCSVAnnulusAnalyser
             T2 = table(allpts(:,1),allpts(:,2),'VariableNames',{'X' 'Y'});
         end
         
-
+     
     end %end class methods
 end %end class
 
@@ -336,6 +547,46 @@ function val = compareDistanceToSoma(centroid,points, shape)
     val1 = ((p1 > id) || (p2 > id));
     val2 = (p1 > od && p2 > od);
     val = xor(val1,val2); %true if either are true but not both
+end
+
+function multiseg = findsubsegments(multiseg,ix,iy,x1,y1,xdata,ydata)
+    p =pdist2([ix,iy],[x1,y1]);
+    s = size(p);
+    mc = length(multiseg) + 1;
+    cache = 0;
+    for i=1:s(1)
+        r = p(i,:); %per row
+        idx = find(r == min(r)) %find idx of least distance from line
+        if (~cache)
+            x1c = x1(idx+1:end);
+            y1c = y1(idx+1:end); 
+            segx = cat(1, x1(idx), x1c);
+            segy = cat(1, y1(idx), y1c);
+        else
+            x1c = x1(idx+1:cache-1);
+            y1c = y1(idx+1:cache-1);
+            segx = cat(1, x1(idx), x1c, x1(cache));
+            segy = cat(1, y1(idx), y1c, y1(cache));
+        end
+        [in,on] = inpolygon(x1c,y1c,xdata,ydata); %test segment without matching pts
+
+        if (length(in(in==true))> 0)
+            plot(segx,segy,'y','LineWidth',2);
+            multiseg{mc} = struct('x',segx,'y',segy);
+            mc = mc + 1;
+        end
+        cache = idx    
+    end
+    % check final seg
+    x1c = x1(1:idx-1);
+    y1c = y1(1:idx-1);
+    [in,on] = inpolygon(x1c,y1c,xdata,ydata);
+    if (length(in(in==true))> 0)
+        segx = cat(1, x1c, x1(idx));
+        segy = cat(1, y1c, y1(idx));
+        plot(segx,segy,'y','LineWidth',2);
+        multiseg{mc} = struct('x',segx,'y',segy);
+    end
 end
 
 
