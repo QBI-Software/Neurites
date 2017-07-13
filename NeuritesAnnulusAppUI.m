@@ -1425,11 +1425,11 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
         
         %Get scale factor - not reqd?
         hScale = findobj('Tag','editScale');
-        scale = 1;%str2num(get(hScale,'String'));
+        scale = str2num(get(hScale,'String'));
         %detect annulus or rectangle
         hA = findobj('Tag','rbAnn');
         annulus = get(hA,'Value');
-       
+        direction =0;
         if (annulus)
             hID = findobj('Tag','editID');
             id = str2double(get(hID,'String'));
@@ -1447,11 +1447,16 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             direction = lower(d1(get(hW,'Value')));
             direction = direction{1}; %string from cellstr
             hSr = findobj('Tag','chkSingleRun');
+            single = get(hSr,'Value');
+            if (single)
+                direction = 0;
+            end
+            
             %Check if Manual rectangle
             hf = findobj('Tag','menu_File_loadimage');
             data = get(hf,'UserData');
             if (isfield(data,'position'))
-                pos = get(data,'position');
+                pos = data.position;
                 hfShiftx = findobj('Tag','editShiftx');
                 hfShifty = findobj('Tag','editShifty');
                 shiftx = str2double(get(hfShiftx,'String'));
@@ -1462,10 +1467,8 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             else
                 shape = [width,height];
             end
-            single = get(hSr,'Value');
-            if (single)
-               direction =0;
-            end
+            
+           
         end
         figure
         N = NeuritesCSVAnnulusAnalyser(csv, annulus, shape, scale, direction);
