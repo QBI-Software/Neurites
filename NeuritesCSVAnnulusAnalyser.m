@@ -156,8 +156,8 @@ classdef NeuritesCSVAnnulusAnalyser
                     %[ix,iy] =polyxpoly(x1,y1,[ho.XData,hi.XData],[ho.YData,hi.YData]);
                     [ix1,iy1,ii1] =polyxpoly(x1,y1,hi.XData,hi.YData); %inner match
                     [ix2,iy2,ii2] =polyxpoly(x1,y1,ho.XData,ho.YData); %outer match
-                    ix = [ix1,ix2];
-                    iy = [iy1,iy2];
+                    ix = cat(1,ix1,ix2);
+                    iy = cat(1,iy1,iy2);
                     multiseg ={};
                     if (~isempty(ix))
                         if(length(ix) == 2)
@@ -172,10 +172,11 @@ classdef NeuritesCSVAnnulusAnalyser
                             segy = cat(1,iy(1),y1(in),iy(2));
                             multiseg{1} = struct('x',segx,'y',segy);
                         elseif(length(ix) > 2)
-                            if (~isempty(ii1))
-                                multiseg = findsubsegments(multiseg,ix1,iy1,x1,y1,hi.XData,hi.YData);
-                            else
-                                multiseg = findsubsegments(multiseg,ix2,iy2,x1,y1,ho.XData,ho.YData);
+                            [in1,on1] = inpolygon(x1,y1,ho.XData,ho.YData); % all in outer circle
+                            [in2,on2] = inpolygon(x1,y1,hi.XData,hi.YData); % all in inner circle 
+                            indata = xor(in1,in2);
+                            if (~isempty(find(indata==1, 1))) %(~isempty(ii2))
+                                multiseg = findsubs(multiseg,ix,iy,indata,x1,y1);
                             end
                             
                         else %only one intersection 
@@ -200,7 +201,12 @@ classdef NeuritesCSVAnnulusAnalyser
                     else % no intersection
                         segx = x1;
                         segy = y1;
-                        multiseg{1} = struct('x',segx,'y',segy);
+                        [in1,on1] = inpolygon(x1,y1,ho.XData,ho.YData);
+                        [in2,on2] = inpolygon(x1,y1,hi.XData,hi.YData);
+                        indata = xor(in1,in2);
+                        if (~isempty(find(indata==1, 1)))
+                            multiseg{1} = struct('x',segx,'y',segy);
+                        end
                     end         
                     
                     for i=1:length(multiseg)
@@ -542,52 +548,45 @@ end
 function val = compareDistanceToSoma(centroid,points, shape)
     id = shape(1); %innerdiam
     od = shape(2); %outerdiam
-    p1 = pdist2(centroid,points(1,:)); %distance from start of points
-    p2 = pdist2(centroid,points(end,:)); %distance from end of points
-    val1 = ((p1 > id) || (p2 > id));
-    val2 = (p1 > od && p2 > od);
-    val = xor(val1,val2); %true if either are true but not both
+    p = pdist2(centroid,points);
+    plot(points(:,1),points(:,2),'b-')
+    m = find(p >= id & p <= od);
+    val = ~isempty(m);
 end
 
-function multiseg = findsubsegments(multiseg,ix,iy,x1,y1,xdata,ydata)
-    p =pdist2([ix,iy],[x1,y1]);
-    s = size(p);
+% multiple segments where neurites overlap perimeter
+% in : combined indices within outer and inner annuli
+% ix and iy : combined points of intersection of outer and inner
+% x1 and y1 : segment points
+function multiseg = findsubs(multiseg,ix,iy,in,x1,y1)
     mc = length(multiseg) + 1;
-    cache = 0;
-    for i=1:s(1)
-        r = p(i,:); %per row
-        idx = find(r == min(r)) %find idx of least distance from line
-        if (~cache)
-            x1c = x1(idx+1:end);
-            y1c = y1(idx+1:end); 
-            segx = cat(1, x1(idx), x1c);
-            segy = cat(1, y1(idx), y1c);
-        else
-            x1c = x1(idx+1:cache-1);
-            y1c = y1(idx+1:cache-1);
-            segx = cat(1, x1(idx), x1c, x1(cache));
-            segy = cat(1, y1(idx), y1c, y1(cache));
-        end
-        [in,on] = inpolygon(x1c,y1c,xdata,ydata); %test segment without matching pts
-
-        if (length(in(in==true))> 0)
-            plot(segx,segy,'y','LineWidth',2);
-            multiseg{mc} = struct('x',segx,'y',segy);
-            mc = mc + 1;
-        end
-        cache = idx    
+    % find end and start of sequences
+    shiftin = in([end 1:end-1]);% shift down one
+    indiff = in - shiftin; 
+    endidx = find(indiff==-1)
+    endidx = endidx - 1; %previous i
+    startidx = find(indiff==1)
+    
+    if in(1) == 1
+        startidx = cat(1,1, startidx);
+    else
+        endidx = endidx(2:end);
     end
-    % check final seg
-    x1c = x1(1:idx-1);
-    y1c = y1(1:idx-1);
-    [in,on] = inpolygon(x1c,y1c,xdata,ydata);
-    if (length(in(in==true))> 0)
-        segx = cat(1, x1c, x1(idx));
-        segy = cat(1, y1c, y1(idx));
-        %plot(segx,segy,'y','LineWidth',2);
+    if (in(end) == 1)
+        endidx = cat(1, endidx,length(in));
+    end
+    nseg = length(endidx);
+    odds = 1:2:length(ix);
+    for i=1:nseg
+        segx = cat(1,ix(odds(i)), x1(startidx(i):endidx(i)));
+        segy = cat(1,iy(odds(i)), y1(startidx(i):endidx(i)));
         multiseg{mc} = struct('x',segx,'y',segy);
+        mc =mc + 1;
     end
+    
 end
+
+
 
 
 

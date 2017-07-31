@@ -223,7 +223,11 @@ function Menu_File_loadcsv_Callback(hObject, eventdata, handles)
     hfiles = findobj('Tag','menu_File_loadimage');
     %hfdata = hfiles.UserData;
     hfdata = get(hfiles,'UserData');
-    csvPath = hfdata.imagePath;
+    if (~isempty(hfdata))
+        csvPath = hfdata.imagePath;
+    else
+        csvPath = pwd();
+    end
     [csvFile, csvPath, ~] = ...
       uigetfile(fileTypes, ...
 		'Select analysis file', ...
