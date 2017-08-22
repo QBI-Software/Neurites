@@ -1482,7 +1482,7 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             [colnames,tabledata] = N.generateTable();
             htable = findobj('Tag','uitableResults');
             set(htable,'data', tabledata, 'ColumnName', colnames);
-            fname = char(strcat('neurites_csv_annulus_',int2str(shape(1)),"_",int2str(shape(2))));
+            fname = char(strcat('neurites_csv_annulus_',int2str(shape(1)),'_',int2str(shape(2))));
             fname1 = strcat(fname,'.csv');
             outputfile = fullfile(csvdata.csvPath, fname1);
             saveDataFile(outputfile,colnames,tabledata);
