@@ -1482,11 +1482,15 @@ function btnCSVAnalysis_Callback(hObject, eventdata, handles)
             [colnames,tabledata] = N.generateTable();
             htable = findobj('Tag','uitableResults');
             set(htable,'data', tabledata, 'ColumnName', colnames);
-            outputfile = fullfile(csvdata.csvPath, 'neurites_csv_annulus.csv');
+            fname = char(strcat('neurites_csv_annulus_',int2str(shape(1)),"_",int2str(shape(2))));
+            fname1 = strcat(fname,'.csv');
+            outputfile = fullfile(csvdata.csvPath, fname1);
             saveDataFile(outputfile,colnames,tabledata);
             %Also output xy coords
-            xyfile1 = fullfile(csvdata.csvPath, 'neurites_csv_annulus_segments.csv');
-            xyfile2 = fullfile(csvdata.csvPath, 'neurites_csv_annulus_xy.csv');
+            fname1 = strcat(fname,'_segments.csv');
+            xyfile1 = fullfile(csvdata.csvPath, fname1);
+            fname1 = strcat(fname,'_xy.csv');
+            xyfile2 = fullfile(csvdata.csvPath,fname1 );
             [T1,T2] = N.outputSegmentXY();
             writetable(T1,xyfile1);
             writetable(T2,xyfile2);

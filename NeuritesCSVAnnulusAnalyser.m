@@ -152,7 +152,7 @@ classdef NeuritesCSVAnnulusAnalyser
                     x1 = N0.points(:,1);
                     y1 = N0.points(:,2);
                     sprintf('Cell node id=%d, h=%d', N0.id,h)
-                    %plot(x1,y1,'g-');
+                    plot(x1,y1,'g-'); 
                     %[ix,iy] =polyxpoly(x1,y1,[ho.XData,hi.XData],[ho.YData,hi.YData]);
                     [ix1,iy1,ii1] =polyxpoly(x1,y1,hi.XData,hi.YData); %inner match
                     [ix2,iy2,ii2] =polyxpoly(x1,y1,ho.XData,ho.YData); %outer match
